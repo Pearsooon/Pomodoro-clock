@@ -7,19 +7,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Calendar, Clock, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+/* ===================== Types & consts ===================== */
+
 type Task = {
   id: string;
   title: string;
   note?: string;
   completed: boolean;
-  /** yyyy-mm-dd (ngày mà task thuộc về, Today/Tomorrow dựa theo field này) */
+  /** yyyy-mm-dd: ngày mà task thuộc về (để phân Today/Tomorrow/History) */
   dateFor: string;
-  createdAt: string; // ISO
+  createdAt: string;   // ISO
   createdTime: string; // HH:mm
 };
 
 type DaySnapshot = {
-  dateFor: string; // yyyy-mm-dd
+  dateFor: string;     // yyyy-mm-dd
   addedCount: number;
   doneCount: number;
   remainingCount: number;
@@ -29,8 +31,6 @@ type DaySnapshot = {
 const LS_TASKS = 'todo_tasks_v1';
 const LS_SNAPSHOTS = 'todo_snapshots_v1';
 const LS_LAST_RESET = 'todo_last_reset_v1';
-
-// Cấu hình nhắc nhở / reset (có thể chuyển sang Settings sau)
 const TODO_PREFS_KEY = 'todoReminderPrefs';
 
 function getTodoPrefs() {
@@ -43,9 +43,10 @@ function getTodoPrefs() {
       unfinishedAlertEnabled: boolean;
       resetTime: string;           // "HH:MM"
     };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
-
 
 function todayStr(d = new Date()) {
   return d.toLocaleDateString('en-CA'); // yyyy-mm-dd
@@ -55,9 +56,6 @@ function tomorrowStr() {
   d.setDate(d.getDate() + 1);
   return todayStr(d);
 }
-function isSameYMD(a: string, b: string) {
-  return a === b;
-}
 function hhmmNow() {
   const d = new Date();
   const hh = String(d.getHours()).padStart(2, '0');
@@ -65,9 +63,12 @@ function hhmmNow() {
   return `${hh}:${mm}`;
 }
 
+/* ===================== Component ===================== */
+
 export const TodoTab: React.FC = () => {
   const { toast } = useToast();
 
+  // ---- state & persistence
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
       const raw = localStorage.getItem(LS_TASKS);
@@ -86,81 +87,98 @@ export const TodoTab: React.FC = () => {
     }
   });
 
+  useEffect(() => localStorage.setItem(LS_TASKS, JSON.stringify(tasks)), [tasks]);
+  useEffect(() => localStorage.setItem(LS_SNAPSHOTS, JSON.stringify(snapshots)), [snapshots]);
+
+  // ---- inputs
   const [newTaskToday, setNewTaskToday] = useState('');
   const [newTaskTomorrow, setNewTaskTomorrow] = useState('');
 
-  // ===== Persist anytime lists change
+  // ---- derived
+  const today = todayStr();
+  const tomorrow = tomorrowStr();
+
+  const todayTasks = tasks.filter(t => t.dateFor === today);
+  const tomorrowTasks = tasks.filter(t => t.dateFor === tomorrow);
+  const completedCountToday = todayTasks.filter(t => t.completed).length;
+
+  // ---- daily tick: reset & reminders
   useEffect(() => {
-    localStorage.setItem(LS_TASKS, JSON.stringify(tasks));
-  }, [tasks]);
-  useEffect(() => {
-    localStorage.setItem(LS_SNAPSHOTS, JSON.stringify(snapshots));
-  }, [snapshots]);
+    const tick = () => {
+      const prefs = getTodoPrefs();
+      const eveningTime = prefs?.eveningRemindTime || '20:30';
+      const resetTime = prefs?.resetTime || '00:00';
+      const nowHHMM = hhmmNow();
+      const nowYMD = todayStr(new Date());
+      const lastReset = localStorage.getItem(LS_LAST_RESET);
 
-  // ===== Daily reset & carry-over logic (run on mount and then every minute)
-  useEffect(() => {
-  const tick = () => {
-    const prefs = getTodoPrefs();
-    const eveningTime = prefs?.eveningRemindTime || '20:30';
-    const resetTime = prefs?.resetTime || '00:00';
-    const nowHHMM = hhmmNow();
-    const nowYMD = todayStr(new Date());
-    const lastReset = localStorage.getItem(LS_LAST_RESET);
+      // 1) Chốt ngày ở thời điểm resetTime: snapshot + carry unfinished -> tomorrow
+      if (nowHHMM === resetTime && lastReset !== nowYMD) {
+        const day = nowYMD;
+        const dayTasks = tasks.filter(t => t.dateFor === day);
 
-    // RESET & carry-over
-    if (nowHHMM === resetTime && lastReset !== nowYMD) {
-      // ... (giữ nguyên block snapshot & carry-over của bạn)
-      localStorage.setItem(LS_LAST_RESET, nowYMD);
-    }
+        if (dayTasks.length > 0) {
+          const added = dayTasks.length;
+          const done = dayTasks.filter(t => t.completed).length;
+          const remaining = added - done;
+          const pct = added ? Math.round((done / added) * 100) : 0;
 
-    // Evening remind
-    if (prefs?.eveningRemindEnabled && nowHHMM === eveningTime) {
-      const existTomorrow = tasks.some(t => t.dateFor === tomorrowStr());
-      if (!existTomorrow) {
-        // Prefer Notification API nếu được cấp quyền
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('Plan tomorrow?', { body: 'You have not added any tasks for tomorrow yet.' });
-        }
-        // Fallback: toast
-        toast({
-          title: 'Plan tomorrow?',
-          description: 'You have not added any tasks for tomorrow yet.',
-        });
-      }
-    }
-
-    // Unfinished alert trước giờ reset (ví dụ nhắc sớm 15’)
-    if (prefs?.unfinishedAlertEnabled) {
-      // nếu muốn nhắc ngay đúng giờ resetTime, bạn có thể so sánh nowHHMM === resetTime
-      // ở đây ví dụ nhắc khi còn 15 phút trước reset:
-      const [rh, rm] = (prefs.resetTime || '00:00').split(':').map(Number);
-      const now = new Date();
-      const reset = new Date();
-      reset.setHours(rh, rm, 0, 0);
-      const diffMin = Math.round((reset.getTime() - now.getTime()) / 60000);
-      if (diffMin === 15) {
-        const todayUnfinished = tasks.some(t => t.dateFor === todayStr() && !t.completed);
-        if (todayUnfinished) {
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('Unfinished tasks', { body: 'You still have unfinished tasks before reset.' });
-          }
-          toast({
-            title: 'Unfinished tasks',
-            description: 'You still have unfinished tasks before reset.',
+          setSnapshots(prev => {
+            const filtered = prev.filter(s => s.dateFor !== day);
+            return [...filtered, { dateFor: day, addedCount: added, doneCount: done, remainingCount: remaining, completionPct: pct }];
           });
         }
+
+        // carry unfinished to tomorrow
+        const tom = tomorrowStr();
+        setTasks(prev => {
+          const carry = prev
+            .filter(t => t.dateFor === day && !t.completed)
+            .map(t => ({ ...t, dateFor: tom } as Task));
+          const keep = prev.filter(t => t.dateFor !== day || t.completed);
+          return [...carry, ...keep];
+        });
+
+        localStorage.setItem(LS_LAST_RESET, nowYMD);
       }
-    }
-  };
 
-  // chạy ngay + mỗi phút
-  tick();
-  const id = setInterval(tick, 60 * 1000);
-  return () => clearInterval(id);
-}, [tasks, toast]);
-  
+      // 2) Evening remind: nếu chưa có task cho ngày mai
+      if (prefs?.eveningRemindEnabled && nowHHMM === eveningTime) {
+        const existTomorrow = tasks.some(t => t.dateFor === tomorrowStr());
+        if (!existTomorrow) {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Plan tomorrow?', { body: 'You have not added any tasks for tomorrow yet.' });
+          }
+          toast({ title: 'Plan tomorrow?', description: 'You have not added any tasks for tomorrow yet.' });
+        }
+      }
 
-  // ===== Yesterday stats (Added/Completed/Remaining)
+      // 3) Cảnh báo còn unfinished trước reset-time (ví dụ 15’)
+      if (prefs?.unfinishedAlertEnabled) {
+        const [rh, rm] = (prefs.resetTime || '00:00').split(':').map(Number);
+        const now = new Date();
+        const reset = new Date();
+        reset.setHours(rh, rm, 0, 0);
+        const diffMin = Math.round((reset.getTime() - now.getTime()) / 60000);
+        if (diffMin === 15) {
+          const unfinished = tasks.some(t => t.dateFor === today && !t.completed);
+          if (unfinished) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('Unfinished tasks', { body: 'You still have unfinished tasks before reset.' });
+            }
+            toast({ title: 'Unfinished tasks', description: 'You still have unfinished tasks before reset.' });
+          }
+        }
+      }
+    };
+
+    // run now + per minute
+    tick();
+    const id = setInterval(tick, 60 * 1000);
+    return () => clearInterval(id);
+  }, [tasks, toast, today]);
+
+  // ---- stats yesterday
   const yesterdayStats = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
@@ -170,21 +188,12 @@ export const TodoTab: React.FC = () => {
     const yTasks = tasks.filter(t => t.dateFor === y);
     const added = yTasks.length;
     const done = yTasks.filter(t => t.completed).length;
-    const rem = added - done;
+    const remaining = added - done;
     const pct = added ? Math.round((done / added) * 100) : 0;
-    return { dateFor: y, addedCount: added, doneCount: done, remainingCount: rem, completionPct: pct };
+    return { dateFor: y, addedCount: added, doneCount: done, remainingCount: remaining, completionPct: pct };
   }, [snapshots, tasks]);
 
-  // ===== Derived lists
-  const today = todayStr();
-  const tomorrow = tomorrowStr();
-
-  const todayTasks = tasks.filter(t => t.dateFor === today);
-  const tomorrowTasks = tasks.filter(t => t.dateFor === tomorrow);
-
-  const completedCountToday = todayTasks.filter(t => t.completed).length;
-
-  // ===== CRUD
+  // ---- CRUD
   const addTask = (dateFor: string, title: string) => {
     const v = title.trim();
     if (!v) return;
@@ -195,73 +204,84 @@ export const TodoTab: React.FC = () => {
       completed: false,
       dateFor,
       createdAt: now.toISOString(),
-      createdTime: hhmmNow(), // ⬅️ thêm thời gian hiện tại
+      createdTime: hhmmNow(),
     };
     setTasks(prev => [task, ...prev]);
   };
-
-  const addTaskToday = () => addTask(today, newTaskToday), clearToday = () => setNewTaskToday('');
-  const addTaskTomorrow = () => addTask(tomorrow, newTaskTomorrow), clearTomorrow = () => setNewTaskTomorrow('');
-
-  useEffect(() => { /* clear input sau khi add */ }, [todayTasks.length]); // no-op; bạn có thể bỏ
+  const addTaskToday = () => addTask(today, newTaskToday);
+  const addTaskTomorrow = () => addTask(tomorrow, newTaskTomorrow);
 
   const toggleTask = (id: string) => {
-    setTasks(prev => prev.map(task => task.id === id ? { ...task, completed: !task.completed } : task));
+    setTasks(prev => prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t)));
   };
-
   const updateTitle = (id: string, newTitle: string) => {
-    setTasks(prev => prev.map(task => task.id === id ? { ...task, title: newTitle } : task));
+    setTasks(prev => prev.map(t => (t.id === id ? { ...t, title: newTitle } : t)));
   };
 
-  // ===== History search/sort
+  // ---- History: search / filter / sort + hiển thị tên task
   const [historyQuery, setHistoryQuery] = useState('');
   const [historyMonth, setHistoryMonth] = useState<string>('all'); // '1'..'12' | 'all'
-  const [historyYear, setHistoryYear] = useState<string>('all');   // '2024'.. | 'all'
+  const [historyYear, setHistoryYear] = useState<string>('all');   // 'yyyy' | 'all'
   const [historySort, setHistorySort] = useState<'date_desc' | 'date_asc' | 'pct_desc' | 'count_desc'>('date_desc');
 
-  const historySnapshots = useMemo(() => {
-    let list = [...snapshots];
+  const historyDays = useMemo(() => {
+    // tập hợp ngày có dữ liệu
+    const dayKeys = Array.from(new Set([
+      ...snapshots.map(s => s.dateFor),
+      ...tasks.map(t => t.dateFor),
+      today,
+    ]));
 
-    // tạo snapshot tạm cho ngày hôm nay (đang chạy) để xem lịch sử
-    const addedCount = todayTasks.length;
-    const doneCount = todayTasks.filter(t => t.completed).length;
-    const remainingCount = addedCount - doneCount;
-    const completionPct = addedCount ? Math.round((doneCount / addedCount) * 100) : 0;
-    list = list.filter(s => s.dateFor !== today);
-    list.push({ dateFor: today, addedCount, doneCount, remainingCount, completionPct });
-
-    // lọc theo query (tìm trong tiêu đề task của ngày đó)
-    if (historyQuery.trim()) {
-      const q = historyQuery.toLowerCase();
-      list = list.filter(s => {
-        const dayTasks = tasks.filter(t => t.dateFor === s.dateFor);
-        return dayTasks.some(t => t.title.toLowerCase().includes(q));
-      });
-    }
-
-    // lọc theo month/year
-    list = list.filter(s => {
-      const d = new Date(s.dateFor);
-      const m = String(d.getMonth() + 1);
-      const y = String(d.getFullYear());
+    // lọc theo month/year + search
+    const filtered = dayKeys.filter(d => {
+      const date = new Date(d);
+      const m = String(date.getMonth() + 1);
+      const y = String(date.getFullYear());
       const okM = historyMonth === 'all' || historyMonth === m;
       const okY = historyYear === 'all' || historyYear === y;
-      return okM && okY;
+      if (!okM || !okY) return false;
+
+      if (!historyQuery.trim()) return true;
+      const q = historyQuery.toLowerCase();
+      const dayTasks = tasks.filter(t => t.dateFor === d);
+      return dayTasks.some(t => t.title.toLowerCase().includes(q));
     });
 
     // sort
-    list.sort((a, b) => {
-      switch (historySort) {
-        case 'date_asc': return a.dateFor.localeCompare(b.dateFor);
-        case 'pct_desc': return b.completionPct - a.completionPct;
-        case 'count_desc': return (b.addedCount) - (a.addedCount);
-        default: // 'date_desc'
-          return b.dateFor.localeCompare(a.dateFor);
-      }
+    filtered.sort((a, b) => {
+      if (historySort === 'date_asc') return a.localeCompare(b);
+
+      const calc = (day: string) => {
+        const snap = snapshots.find(s => s.dateFor === day);
+        if (snap) return { count: snap.addedCount, pct: snap.completionPct };
+        const ds = tasks.filter(t => t.dateFor === day);
+        const done = ds.filter(t => t.completed).length;
+        const count = ds.length;
+        const pct = count ? Math.round((done / count) * 100) : 0;
+        return { count, pct };
+      };
+
+      if (historySort === 'pct_desc') return calc(b).pct - calc(a).pct;
+      if (historySort === 'count_desc') return calc(b).count - calc(a).count;
+
+      return b.localeCompare(a); // date_desc
     });
 
-    return list;
-  }, [snapshots, tasks, todayTasks, historyQuery, historyMonth, historyYear, historySort]);
+    // build data per-day
+    return filtered.map(d => {
+      const ds = tasks.filter(t => t.dateFor === d);
+      const snap = snapshots.find(s => s.dateFor === d);
+      const added = snap?.addedCount ?? ds.length;
+      const done = snap?.doneCount ?? ds.filter(t => t.completed).length;
+      const left = snap?.remainingCount ?? (added - done);
+      const pct  = snap?.completionPct ?? (added ? Math.round((done / added) * 100) : 0);
+      const completed = ds.filter(t => t.completed);
+      const remaining = ds.filter(t => !t.completed);
+      return { dateFor: d, added, done, left, pct, completed, remaining };
+    });
+  }, [snapshots, tasks, historyQuery, historyMonth, historyYear, historySort, today]);
+
+  /* ===================== UI ===================== */
 
   return (
     <div className="p-6 pb-24 space-y-6">
@@ -320,7 +340,7 @@ export const TodoTab: React.FC = () => {
           </div>
         </TabsContent>
 
-        {/* TOMORROW (kế hoạch ngày mai) */}
+        {/* TOMORROW */}
         <TabsContent value="tomorrow" className="space-y-4 mt-4">
           <Card className="p-4">
             <div className="flex gap-2">
@@ -362,7 +382,7 @@ export const TodoTab: React.FC = () => {
           <Card className="p-4 space-y-3">
             <div className="flex flex-wrap gap-2 items-center">
               <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"/>
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search in task titles..."
                   value={historyQuery}
@@ -378,7 +398,7 @@ export const TodoTab: React.FC = () => {
               >
                 <option value="all">All months</option>
                 {Array.from({ length: 12 }).map((_, i) => (
-                  <option key={i+1} value={String(i+1)}>{`Month ${i+1}`}</option>
+                  <option key={i + 1} value={String(i + 1)}>{`Month ${i + 1}`}</option>
                 ))}
               </select>
 
@@ -390,8 +410,9 @@ export const TodoTab: React.FC = () => {
                 <option value="all">All years</option>
                 {Array.from(new Set([...snapshots.map(s => new Date(s.dateFor).getFullYear()), new Date().getFullYear()]))
                   .sort()
-                  .map(y => <option key={y} value={String(y)}>{y}</option>)
-                }
+                  .map(y => (
+                    <option key={y} value={String(y)}>{y}</option>
+                  ))}
               </select>
 
               <select
@@ -408,18 +429,49 @@ export const TodoTab: React.FC = () => {
           </Card>
 
           <div className="space-y-3">
-            {historySnapshots.length === 0 ? (
+            {historyDays.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">No history yet</div>
             ) : (
-              historySnapshots.map(s => (
-                <Card key={s.dateFor} className="p-4">
-                  <div className="flex items-center justify-between">
+              historyDays.map(day => (
+                <Card key={day.dateFor} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4"/>
-                      <span className="font-medium">{new Date(s.dateFor).toLocaleDateString()}</span>
+                      <Calendar className="w-4 h-4" />
+                      <span className="font-medium">{new Date(day.dateFor).toLocaleDateString()}</span>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {s.addedCount} tasks • {s.doneCount} done • {s.remainingCount} left • {s.completionPct}%
+                      {day.added} tasks • {day.done} done • {day.left} left • {day.pct}%
+                    </div>
+                  </div>
+
+                  {/* Danh sách task hoàn thành / còn lại */}
+                  <div className="grid gap-2 md:grid-cols-2">
+                    <div>
+                      <div className="text-xs font-semibold text-muted-foreground mb-1">Completed</div>
+                      {day.completed.length === 0 ? (
+                        <div className="text-xs text-muted-foreground/70">—</div>
+                      ) : (
+                        <ul className="list-disc pl-5 space-y-1">
+                          {day.completed.map(t => (
+                            <li key={t.id} className="text-sm line-through text-muted-foreground">
+                              {t.title}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="text-xs font-semibold text-muted-foreground mb-1">Remaining</div>
+                      {day.remaining.length === 0 ? (
+                        <div className="text-xs text-muted-foreground/70">—</div>
+                      ) : (
+                        <ul className="list-disc pl-5 space-y-1">
+                          {day.remaining.map(t => (
+                            <li key={t.id} className="text-sm">{t.title}</li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -431,6 +483,8 @@ export const TodoTab: React.FC = () => {
     </div>
   );
 };
+
+/* ===================== Row ===================== */
 
 const TaskRow: React.FC<{
   task: Task;
@@ -454,7 +508,6 @@ const TaskRow: React.FC<{
           onCheckedChange={() => onToggle(task.id)}
           className="mt-1"
         />
-
         <div className="flex-1 min-w-0">
           {!editing ? (
             <div className="group">
