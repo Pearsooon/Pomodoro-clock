@@ -144,11 +144,11 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
       </svg>
 
       {/* Pet in center */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <img
           src={petSrc}
           alt={isBreakMode ? "Sleeping pet" : "Awake pet"}
-          className="w-24 h-24 object-contain transition-all duration-500"
+          className="w-24 h-24 object-contain transition-all duration-500 pointer-events-none"
         />
       </div>
     </div>
