@@ -6,7 +6,7 @@ import petSleeping from "@/assets/pet-sleeping.png";
 interface CircularTimerProps {
   minutes: number;        // minutes remaining (for progress)
   seconds: number;        // seconds remaining (for progress)
-  totalMinutes: number;   // SELECTED length, now 0..59
+  totalMinutes: number;   // SELECTED length: 0..59 (0 = 0 phút, 59 = 59 phút)
   isRunning: boolean;
   isBreakMode: boolean;
   onMinutesChange: (m: number) => void; // update totalMinutes (0..59)
@@ -36,12 +36,14 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const petSrc = isBreakMode ? (sleepImage || petSleeping) : (petImage || petAwake);
 
   // ===== Progress ring (running only) =====
-  const totalSeconds = Math.max(1, (totalMinutes + 1) * 60); // nếu bạn coi 0=1p thì bỏ +1
+  const totalSeconds = Math.max(1, totalMinutes * 60); // nếu chọn 0 phút, progress sẽ coi như 1s để tránh chia 0
   const currentSeconds = Math.max(0, minutes * 60 + seconds);
-  const progress = isRunning ? (totalSeconds - currentSeconds) / totalSeconds : 0;
+  const progress = isRunning && totalMinutes > 0
+    ? (totalSeconds - currentSeconds) / totalSeconds
+    : 0;
   const dashOffset = circumference - progress * circumference;
 
-  // ⭐ Convert pointer -> minute in [0..59], 12 o'clock = 0, clockwise
+  // ===== Convert pointer -> minute in [0..59], 12 o'clock = 0, clockwise =====
   const clientToMinute = useCallback((clientX: number, clientY: number) => {
     if (!svgRef.current) return totalMinutes;
 
@@ -49,19 +51,19 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
 
-    const angle = Math.atan2(clientY - cy, clientX - cx); // [-PI,PI], 0 at +X
-    let a = angle + Math.PI / 2;                          // shift so TOP=0
-    if (a < 0) a += 2 * Math.PI;                          // [0,2PI)
-    // Map [0,2PI) -> [0..59]
-    const m = Math.round((a / (2 * Math.PI)) * 59);
+    // angle in radians with 0 at +X axis
+    const angle = Math.atan2(clientY - cy, clientX - cx); // [-PI, PI]
+    let a = angle + Math.PI / 2;                          // shift so TOP = 0
+    if (a < 0) a += 2 * Math.PI;                          // [0, 2PI)
+    const m = Math.floor((a / (2 * Math.PI)) * 60);       // snap down to reduce jitter
     return Math.min(59, Math.max(0, m));
   }, [totalMinutes]);
 
-  // ===== Drag handlers =====
+  // ===== Drag handlers (window-level for robustness) =====
   useEffect(() => {
     const move = (e: PointerEvent) => {
       if (!dragging || isRunning) return;
-      onMinutesChange(clientToMinute(e.clientX, e.clientY)); // ⭐ luôn chiếu lên vòng bằng góc
+      onMinutesChange(clientToMinute(e.clientX, e.clientY));
     };
     const up = () => setDragging(false);
 
@@ -78,7 +80,7 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isRunning) return;
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    onMinutesChange(clientToMinute(e.clientX, e.clientY));
+    onMinutesChange(clientToMinute(e.clientX, e.clientY)); // jump to clicked point
     setDragging(true);
   };
 
@@ -87,8 +89,8 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
     onMinutesChange(clientToMinute(e.clientX, e.clientY));
   };
 
-  // ⭐ Knob exactly on circle from minute -> angle (12h start, clockwise)
-  const angleFromMinute = (m: number) => (m / 59) * 2 * Math.PI - Math.PI / 2;
+  // ===== Knob position from minute -> angle (12h start, clockwise) =====
+  const angleFromMinute = (m: number) => (m / 60) * 2 * Math.PI - Math.PI / 2;
   const a = angleFromMinute(totalMinutes);
   const knobX = center + radius * Math.cos(a);
   const knobY = center + radius * Math.sin(a);
@@ -99,11 +101,33 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
         ref={svgRef}
         width={center * 2}
         height={center * 2}
-        // ❌ bỏ -rotate-90 để không xoay hệ trục
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        style={{ touchAction: "none" }}
+        style={{ touchAction: "none" }} // prevent page scroll on touch
       >
+        {/* Clock tick marks (60 ticks; every 5th is longer & thicker) */}
+        {Array.from({ length: 60 }).map((_, i) => {
+          const tickAngle = (i / 60) * 2 * Math.PI - Math.PI / 2; // 12h start
+          const inner = i % 5 === 0 ? radius - 12 : radius - 6;
+          const outer = radius;
+          const x1 = center + inner * Math.cos(tickAngle);
+          const y1 = center + inner * Math.sin(tickAngle);
+          const x2 = center + outer * Math.cos(tickAngle);
+          const y2 = center + outer * Math.sin(tickAngle);
+          return (
+            <line
+              key={i}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke="hsl(var(--muted-foreground))"
+              strokeWidth={i % 5 === 0 ? 3 : 1.5}
+              strokeLinecap="round"
+            />
+          );
+        })}
+
         {/* Background ring */}
         <circle
           cx={center}
@@ -113,8 +137,9 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Progress ring; nếu muốn start tại 12h, xoay riêng vòng progress */}
-        <g transform={`rotate(-90 ${center} ${center})`}> {/* ⭐ xoay chỉ stroke hiển thị */}
+
+        {/* Progress ring: rotate visual only to start at 12h */}
+        <g transform={`rotate(-90 ${center} ${center})`}>
           <circle
             cx={center}
             cy={center}
@@ -129,20 +154,22 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
           />
         </g>
 
-        {/* (Optional) invisible hit ring cho dễ kéo */}
-        <circle
-          cx={center}
-          cy={center}
-          r={radius}
-          fill="none"
-          stroke="transparent"
-          strokeWidth={40}
-          pointerEvents="stroke"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-        />
+        {/* Invisible hit ring for easy drag/click */}
+        {!isRunning && (
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="none"
+            stroke="transparent"
+            strokeWidth={40}
+            pointerEvents="stroke"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+          />
+        )}
 
-        {/* Knob (luôn nằm đúng bán kính) */}
+        {/* Knob: purely visual, does not capture events (prevents jitter) */}
         {!isRunning && (
           <circle
             cx={knobX}
@@ -151,15 +178,17 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
             fill="hsl(var(--primary))"
             stroke="white"
             strokeWidth={3}
-            className="cursor-pointer hover:scale-110 transition-transform shadow-lg"
+            className="shadow-lg"
+            pointerEvents="none"
+            style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.1))" }}
           />
         )}
       </svg>
 
-      {/* Pet ở giữa không chặn sự kiện */}
+      {/* Pet in center (do not block pointer) */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <img
-          src={isBreakMode ? (sleepImage || petSleeping) : (petImage || petAwake)}
+          src={petSrc}
           alt={isBreakMode ? "Sleeping pet" : "Awake pet"}
           className="w-24 h-24 object-contain transition-all duration-500 pointer-events-none"
         />
