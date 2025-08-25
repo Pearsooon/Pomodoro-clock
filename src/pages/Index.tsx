@@ -6,31 +6,33 @@ import { PetTab } from '@/components/PetTab';
 import { BlockTab } from '@/components/BlockTab';
 import { SettingsTab } from '@/components/SettingsTab';
 
-const Index = () => {
-  const [activeTab, setActiveTab] = useState('home');
+type TabId = 'home' | 'todo' | 'pet' | 'block' | 'settings';
 
-  const renderActiveTab = () => {
-    switch (activeTab) {
-      case 'home':
-        return <HomeTab />;
-      case 'todo':
-        return <TodoTab />;
-      case 'pet':
-        return <PetTab />;
-      case 'block':
-        return <BlockTab />;
-      case 'settings':
-        return <SettingsTab />;
-      default:
-        return <HomeTab />;
-    }
-  };
+const Index: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<TabId>('home');
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="pb-16">
-        {renderActiveTab()}
+      <main className="pb-20">
+        {/* GIỮ MOUNT, chỉ ẩn/hiện bằng "hidden" để timer không bị clear */}
+        <div className={activeTab === 'home' ? '' : 'hidden'}>
+          <HomeTab />
+        </div>
+        <div className={activeTab === 'todo' ? '' : 'hidden'}>
+          <TodoTab />
+        </div>
+        <div className={activeTab === 'pet' ? '' : 'hidden'}>
+          <PetTab />
+        </div>
+        <div className={activeTab === 'block' ? '' : 'hidden'}>
+          <BlockTab />
+        </div>
+        <div className={activeTab === 'settings' ? '' : 'hidden'}>
+          <SettingsTab />
+        </div>
       </main>
+
+      {/* Bottom nav cố định */}
       <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
