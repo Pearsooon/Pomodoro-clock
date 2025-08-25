@@ -6,10 +6,10 @@ import petSleeping from "@/assets/pet-sleeping.png";
 interface CircularTimerProps {
   minutes: number;        // minutes remaining (for progress)
   seconds: number;        // seconds remaining (for progress)
-  totalMinutes: number;   // selected work length (1..60)
+  totalMinutes: number;   // SELECTED length, now 0..59
   isRunning: boolean;
   isBreakMode: boolean;
-  onMinutesChange: (m: number) => void; // update totalMinutes (1..60)
+  onMinutesChange: (m: number) => void; // update totalMinutes (0..59)
   className?: string;
   petImage?: string;
   sleepImage?: string;
@@ -35,34 +35,33 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const circumference = 2 * Math.PI * radius;
   const petSrc = isBreakMode ? (sleepImage || petSleeping) : (petImage || petAwake);
 
-  // ===== Progress ring (only when running) =====
-  const totalSeconds = Math.max(1, totalMinutes * 60);
+  // ===== Progress ring (running only) =====
+  const totalSeconds = Math.max(1, (totalMinutes + 1) * 60); // nếu bạn coi 0=1p thì bỏ +1
   const currentSeconds = Math.max(0, minutes * 60 + seconds);
   const progress = isRunning ? (totalSeconds - currentSeconds) / totalSeconds : 0;
   const dashOffset = circumference - progress * circumference;
 
-  // ===== Helper: convert (clientX, clientY) -> minutes (1..60) =====
-  const clientToMinutes = useCallback((clientX: number, clientY: number) => {
+  // ⭐ Convert pointer -> minute in [0..59], 12 o'clock = 0, clockwise
+  const clientToMinute = useCallback((clientX: number, clientY: number) => {
     if (!svgRef.current) return totalMinutes;
 
     const rect = svgRef.current.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
 
-    // angle in radians with 0 at +X axis; we want 0 at TOP and clockwise
-    const angle = Math.atan2(clientY - cy, clientX - cx); // [-PI, PI], 0 at +X
-    let a = angle + Math.PI / 2;                          // shift so TOP = 0
-    if (a < 0) a += 2 * Math.PI;                          // [0, 2PI)
-    // map [0, 2PI) -> [1..60]
-    const m = Math.round((a / (2 * Math.PI)) * 59) + 1;
-    return Math.min(60, Math.max(1, m));
+    const angle = Math.atan2(clientY - cy, clientX - cx); // [-PI,PI], 0 at +X
+    let a = angle + Math.PI / 2;                          // shift so TOP=0
+    if (a < 0) a += 2 * Math.PI;                          // [0,2PI)
+    // Map [0,2PI) -> [0..59]
+    const m = Math.round((a / (2 * Math.PI)) * 59);
+    return Math.min(59, Math.max(0, m));
   }, [totalMinutes]);
 
-  // ===== Drag handlers on window (robust) =====
+  // ===== Drag handlers =====
   useEffect(() => {
     const move = (e: PointerEvent) => {
       if (!dragging || isRunning) return;
-      onMinutesChange(clientToMinutes(e.clientX, e.clientY));
+      onMinutesChange(clientToMinute(e.clientX, e.clientY)); // ⭐ luôn chiếu lên vòng bằng góc
     };
     const up = () => setDragging(false);
 
@@ -74,27 +73,25 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
     };
-  }, [dragging, isRunning, clientToMinutes, onMinutesChange]);
+  }, [dragging, isRunning, clientToMinute, onMinutesChange]);
 
-  // Start dragging from anywhere on the SVG (ring or knob)
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isRunning) return;
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    // set immediately to the point clicked
-    onMinutesChange(clientToMinutes(e.clientX, e.clientY));
+    onMinutesChange(clientToMinute(e.clientX, e.clientY));
     setDragging(true);
   };
 
-  // Also support move while pointer is captured on the SVG itself
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!dragging || isRunning) return;
-    onMinutesChange(clientToMinutes(e.clientX, e.clientY));
+    onMinutesChange(clientToMinute(e.clientX, e.clientY));
   };
 
-  // ===== Knob position from totalMinutes =====
-  const angle = ((totalMinutes - 1) / 59) * 2 * Math.PI - Math.PI / 2; // top start
-  const knobX = center + radius * Math.cos(angle);
-  const knobY = center + radius * Math.sin(angle);
+  // ⭐ Knob exactly on circle from minute -> angle (12h start, clockwise)
+  const angleFromMinute = (m: number) => (m / 59) * 2 * Math.PI - Math.PI / 2;
+  const a = angleFromMinute(totalMinutes);
+  const knobX = center + radius * Math.cos(a);
+  const knobY = center + radius * Math.sin(a);
 
   return (
     <div className={cn("relative flex items-center justify-center", className)}>
@@ -102,12 +99,12 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
         ref={svgRef}
         width={center * 2}
         height={center * 2}
-        className="transform -rotate-90"
+        // ❌ bỏ -rotate-90 để không xoay hệ trục
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        style={{ touchAction: "none" }} // prevent page scroll on touch
+        style={{ touchAction: "none" }}
       >
-        {/* Background ring (clickable) */}
+        {/* Background ring */}
         <circle
           cx={center}
           cy={center}
@@ -116,20 +113,36 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
           strokeWidth={strokeWidth}
           fill="none"
         />
-        {/* Progress ring */}
+        {/* Progress ring; nếu muốn start tại 12h, xoay riêng vòng progress */}
+        <g transform={`rotate(-90 ${center} ${center})`}> {/* ⭐ xoay chỉ stroke hiển thị */}
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            stroke={isBreakMode ? "hsl(var(--break-foreground))" : "hsl(var(--primary))"}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={dashOffset}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-linear"
+          />
+        </g>
+
+        {/* (Optional) invisible hit ring cho dễ kéo */}
         <circle
           cx={center}
           cy={center}
           r={radius}
-          stroke={isBreakMode ? "hsl(var(--break-foreground))" : "hsl(var(--primary))"}
-          strokeWidth={strokeWidth}
           fill="none"
-          strokeDasharray={circumference}
-          strokeDashoffset={dashOffset}
-          strokeLinecap="round"
-          className="transition-all duration-1000 ease-linear"
+          stroke="transparent"
+          strokeWidth={40}
+          pointerEvents="stroke"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
         />
-        {/* Knob */}
+
+        {/* Knob (luôn nằm đúng bán kính) */}
         {!isRunning && (
           <circle
             cx={knobX}
@@ -143,10 +156,10 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
         )}
       </svg>
 
-      {/* Pet in center */}
+      {/* Pet ở giữa không chặn sự kiện */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <img
-          src={petSrc}
+          src={isBreakMode ? (sleepImage || petSleeping) : (petImage || petAwake)}
           alt={isBreakMode ? "Sleeping pet" : "Awake pet"}
           className="w-24 h-24 object-contain transition-all duration-500 pointer-events-none"
         />
