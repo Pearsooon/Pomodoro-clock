@@ -4,12 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CircularTimer } from '@/components/CircularTimer';
 import { CycleModal } from '@/components/CycleModal';
+import { PetUnlockModal } from '@/components/PetUnlockModal';
 import { usePomodoro } from '@/hooks/usePomodoro';
+import { usePetCollection } from '@/hooks/usePetCollection';
 import { cn } from '@/lib/utils';
 
 export const HomeTab: React.FC = () => {
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
+  const [newUnlockedPet, setNewUnlockedPet] = useState<any>(null);
+  
+  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion } = usePetCollection();
   
   const {
     minutes,
@@ -37,6 +42,22 @@ export const HomeTab: React.FC = () => {
     stopTimer();
     setShowStopDialog(false);
   };
+
+  // Check for pet unlocks when session completes
+  React.useEffect(() => {
+    if (phase === 'completed') {
+      // Mock stats for demonstration
+      const totalCycles = 47;
+      const currentStreak = 8;
+      const totalFocusMinutes = Math.floor(totalCycles * 25);
+      const level = 5;
+      
+      const newPets = checkForNewPetUnlocks(totalCycles, currentStreak, totalFocusMinutes, level);
+      if (newPets.length > 0) {
+        setNewUnlockedPet(newPets[0]); // Show first unlocked pet
+      }
+    }
+  }, [phase, checkForNewPetUnlocks]);
 
   const formatTime = (mins: number, secs: number) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -68,6 +89,8 @@ export const HomeTab: React.FC = () => {
             isRunning={isRunning}
             isBreakMode={isBreakMode}
             onMinutesChange={setWorkMinutes}
+            petImage={currentCompanion?.image}
+            sleepImage={currentCompanion?.sleepImage}
           />
         </div>
         
@@ -133,6 +156,14 @@ export const HomeTab: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Pet unlock modal */}
+      <PetUnlockModal
+        pet={newUnlockedPet}
+        isOpen={!!newUnlockedPet}
+        onClose={() => setNewUnlockedPet(null)}
+        onSetAsCompanion={setAsCompanion}
+      />
     </div>
   );
 };

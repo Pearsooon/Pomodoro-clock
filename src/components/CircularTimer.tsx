@@ -11,6 +11,8 @@ interface CircularTimerProps {
   isBreakMode: boolean;
   onMinutesChange: (minutes: number) => void;
   className?: string;
+  petImage?: string;
+  sleepImage?: string;
 }
 
 export const CircularTimer: React.FC<CircularTimerProps> = ({
@@ -20,7 +22,9 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   isRunning,
   isBreakMode,
   onMinutesChange,
-  className
+  className,
+  petImage,
+  sleepImage
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -29,6 +33,8 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const strokeWidth = 8;
   const center = radius + strokeWidth;
   const circumference = 2 * Math.PI * radius;
+  
+  const currentPetImage = isBreakMode ? (sleepImage || petSleeping) : (petImage || petAwake);
   
   // Calculate progress for the timer ring
   const totalSeconds = totalMinutes * 60;
@@ -122,7 +128,7 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
       {/* Pet in center */}
       <div className="absolute inset-0 flex items-center justify-center">
         <img
-          src={isBreakMode ? petSleeping : petAwake}
+          src={currentPetImage}
           alt={isBreakMode ? "Sleeping pet" : "Awake pet"}
           className="w-24 h-24 object-contain transition-all duration-500"
         />
