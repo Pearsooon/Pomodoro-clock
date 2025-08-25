@@ -31,8 +31,21 @@ const LS_SNAPSHOTS = 'todo_snapshots_v1';
 const LS_LAST_RESET = 'todo_last_reset_v1';
 
 // Cấu hình nhắc nhở / reset (có thể chuyển sang Settings sau)
-const EVENING_REMIND = '20:30'; // HH:mm – nhắc lập kế hoạch ngày mai
-const RESET_TIME = '00:00';     // HH:mm – chốt ngày & carry-over
+const TODO_PREFS_KEY = 'todoReminderPrefs';
+
+function getTodoPrefs() {
+  try {
+    const raw = localStorage.getItem(TODO_PREFS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as {
+      eveningRemindEnabled: boolean;
+      eveningRemindTime: string;   // "HH:MM"
+      unfinishedAlertEnabled: boolean;
+      resetTime: string;           // "HH:MM"
+    };
+  } catch { return null; }
+}
+
 
 function todayStr(d = new Date()) {
   return d.toLocaleDateString('en-CA'); // yyyy-mm-dd
@@ -86,58 +99,66 @@ export const TodoTab: React.FC = () => {
 
   // ===== Daily reset & carry-over logic (run on mount and then every minute)
   useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      const nowYMD = todayStr(now);
-      const lastReset = localStorage.getItem(LS_LAST_RESET);
-      const nowHHMM = hhmmNow();
+  const tick = () => {
+    const prefs = getTodoPrefs();
+    const eveningTime = prefs?.eveningRemindTime || '20:30';
+    const resetTime = prefs?.resetTime || '00:00';
+    const nowHHMM = hhmmNow();
+    const nowYMD = todayStr(new Date());
+    const lastReset = localStorage.getItem(LS_LAST_RESET);
 
-      // 1) Ở thời điểm RESET_TIME mỗi ngày: tạo snapshot ngày hôm nay, carry unfinished sang ngày mai
-      if (nowHHMM === RESET_TIME && lastReset !== nowYMD) {
-        // snapshot cho ngày hiện tại (đã kết thúc)
-        const day = nowYMD;
-        const dayTasks = tasks.filter(t => t.dateFor === day);
-        if (dayTasks.length > 0) {
-          const addedCount = dayTasks.length;
-          const doneCount = dayTasks.filter(t => t.completed).length;
-          const remainingCount = addedCount - doneCount;
-          const completionPct = Math.round((doneCount / addedCount) * 100);
-          setSnapshots(prev => {
-            const filtered = prev.filter(s => s.dateFor !== day);
-            return [...filtered, { dateFor: day, addedCount, doneCount, remainingCount, completionPct }];
-          });
+    // RESET & carry-over
+    if (nowHHMM === resetTime && lastReset !== nowYMD) {
+      // ... (giữ nguyên block snapshot & carry-over của bạn)
+      localStorage.setItem(LS_LAST_RESET, nowYMD);
+    }
+
+    // Evening remind
+    if (prefs?.eveningRemindEnabled && nowHHMM === eveningTime) {
+      const existTomorrow = tasks.some(t => t.dateFor === tomorrowStr());
+      if (!existTomorrow) {
+        // Prefer Notification API nếu được cấp quyền
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Plan tomorrow?', { body: 'You have not added any tasks for tomorrow yet.' });
         }
-
-        // carry-over unfinished -> tomorrow
-        const tomorrow = tomorrowStr();
-        setTasks(prev => {
-          const carry = prev
-            .filter(t => t.dateFor === day && !t.completed)
-            .map(t => ({ ...t, dateFor: tomorrow } as Task));
-          const keepOthers = prev.filter(t => t.dateFor !== day || t.completed);
-          return [...carry, ...keepOthers];
+        // Fallback: toast
+        toast({
+          title: 'Plan tomorrow?',
+          description: 'You have not added any tasks for tomorrow yet.',
         });
-
-        localStorage.setItem(LS_LAST_RESET, nowYMD);
       }
+    }
 
-      // 2) Evening remind nếu chưa có task cho ngày mai
-      if (nowHHMM === EVENING_REMIND) {
-        const existTomorrow = tasks.some(t => t.dateFor === tomorrowStr());
-        if (!existTomorrow) {
+    // Unfinished alert trước giờ reset (ví dụ nhắc sớm 15’)
+    if (prefs?.unfinishedAlertEnabled) {
+      // nếu muốn nhắc ngay đúng giờ resetTime, bạn có thể so sánh nowHHMM === resetTime
+      // ở đây ví dụ nhắc khi còn 15 phút trước reset:
+      const [rh, rm] = (prefs.resetTime || '00:00').split(':').map(Number);
+      const now = new Date();
+      const reset = new Date();
+      reset.setHours(rh, rm, 0, 0);
+      const diffMin = Math.round((reset.getTime() - now.getTime()) / 60000);
+      if (diffMin === 15) {
+        const todayUnfinished = tasks.some(t => t.dateFor === todayStr() && !t.completed);
+        if (todayUnfinished) {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Unfinished tasks', { body: 'You still have unfinished tasks before reset.' });
+          }
           toast({
-            title: 'Plan tomorrow?',
-            description: 'You have not added any tasks for tomorrow yet.',
+            title: 'Unfinished tasks',
+            description: 'You still have unfinished tasks before reset.',
           });
         }
       }
-    };
+    }
+  };
 
-    // tick ngay khi mount để xử lý nếu app mở sau reset-time
-    tick();
-    const id = setInterval(tick, 60 * 1000); // mỗi phút
-    return () => clearInterval(id);
-  }, [tasks, toast]);
+  // chạy ngay + mỗi phút
+  tick();
+  const id = setInterval(tick, 60 * 1000);
+  return () => clearInterval(id);
+}, [tasks, toast]);
+  
 
   // ===== Yesterday stats (Added/Completed/Remaining)
   const yesterdayStats = useMemo(() => {
