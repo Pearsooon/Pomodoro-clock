@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Clock, Search } from 'lucide-react';
+import { Plus, Calendar, Clock, Search, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 /* ===================== Types & consts ===================== */
@@ -503,21 +503,39 @@ const TaskRow: React.FC<{
   return (
     <Card className="p-4">
       <div className="flex items-start gap-3">
+        {/* Checkbox hoàn thành */}
         <Checkbox
           checked={task.completed}
           onCheckedChange={() => onToggle(task.id)}
           className="mt-1"
         />
+
+        {/* Nội dung task */}
         <div className="flex-1 min-w-0">
           {!editing ? (
-            <div className="group">
-              <div
-                className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}
-                onDoubleClick={() => setEditing(true)}
-                title="Double-click to edit"
-              >
-                {task.title}
+            <>
+              <div className="flex items-start gap-2">
+                <div className={`flex-1 font-medium ${task.completed ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                  {task.title}
+                </div>
+
+                {/* Nút Edit */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => {
+                    setDraft(task.title);
+                    setEditing(true);
+                  }}
+                  aria-label="Edit task"
+                  title="Edit"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
               </div>
+
               <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" /> {task.createdTime}
@@ -527,7 +545,7 @@ const TaskRow: React.FC<{
                   <Calendar className="w-3 h-3" /> {new Date(task.createdAt).toLocaleDateString()}
                 </span>
               </div>
-            </div>
+            </>
           ) : (
             <div className="flex gap-2">
               <Input
@@ -538,6 +556,7 @@ const TaskRow: React.FC<{
                   if (e.key === 'Enter') save();
                   if (e.key === 'Escape') setEditing(false);
                 }}
+                className="flex-1"
               />
               <Button onClick={save} variant="outline" size="sm">Save</Button>
             </div>
