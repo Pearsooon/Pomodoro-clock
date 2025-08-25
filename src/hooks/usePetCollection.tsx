@@ -9,7 +9,7 @@ type Ctx = {
   setAsCompanion: (petId: string) => void;
   isPetUnlocked: (petId: string) => boolean;
   getPetProgress: (petId: string) => PetProgress | null;
-  /** gọi sau khi hoàn thành session để random rơi pet */
+  /** Gọi sau khi hoàn thành session để random rơi pet */
   checkForNewPetUnlocks: (args: {
     totalCycles: number;
     currentStreak: number;
@@ -21,10 +21,11 @@ type Ctx = {
 const PetCollectionContext = createContext<Ctx | null>(null);
 
 const STORAGE_KEY = 'pet_collection_v1';
+const EVENT_PET_UNLOCKED = 'pet:unlocked';
 
 const DEFAULT_USER_PETS: UserPet[] = [
   {
-    petId: 'focus-buddy',            // bảo đảm trùng với id trong PETS[0]
+    petId: 'focus-buddy',
     unlockedAt: new Date(),
     isCompanion: true,
     progress: { petId: 'focus-buddy', level: 5, xp: 750, xpToNextLevel: 1000 },
@@ -69,17 +70,26 @@ export const PetCollectionProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [userPets]);
 
   const unlockPet = useCallback((petId: string) => {
-    setUserPets(prev => {
-      if (prev.some(p => p.petId === petId)) return prev; // đã có
-      const newPet: UserPet = {
-        petId,
-        unlockedAt: new Date(),
-        isCompanion: prev.length === 0, // nếu pet đầu tiên thì set companion
-        progress: { petId, level: 1, xp: 0, xpToNextLevel: 100 },
-      };
-      return [...prev, newPet];
-    });
-  }, []);
+    // Nếu đã có thì bỏ qua
+    if (isPetUnlocked(petId)) return;
+
+    const petMeta = PETS.find(p => p.id === petId);
+    if (!petMeta) return;
+
+    const newPet: UserPet = {
+      petId,
+      unlockedAt: new Date(),
+      isCompanion: userPets.length === 0, // nếu là pet đầu tiên
+      progress: { petId, level: 1, xp: 0, xpToNextLevel: 100 },
+    };
+
+    setUserPets(prev => [...prev, newPet]);
+
+    // 🔔 Phát sự kiện toàn cục để HomeTab (hoặc nơi khác) bật modal
+    try {
+      window.dispatchEvent(new CustomEvent<Pet>(EVENT_PET_UNLOCKED, { detail: petMeta }));
+    } catch {}
+  }, [isPetUnlocked, userPets.length]);
 
   const setAsCompanion = useCallback((petId: string) => {
     setUserPets(prev => prev.map(p => ({ ...p, isCompanion: p.petId === petId })));
@@ -92,30 +102,35 @@ export const PetCollectionProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const currentCompanion = useMemo(() => {
     const cur = userPets.find(p => p.isCompanion);
-    return cur ? PETS.find(pt => pt.id === cur.petId) ?? null : null;
+    return cur ? (PETS.find(pt => pt.id === cur.petId) ?? null) : null;
   }, [userPets]);
 
-  // Logic random rơi pet theo rule trong PETS (giữ nguyên cách của bạn)
+  // Random rơi pet theo rule trong PETS
   const checkForNewPetUnlocks: Ctx['checkForNewPetUnlocks'] = useCallback(({ totalCycles, currentStreak, totalFocusMinutes, level }) => {
     const newUnlocks: Pet[] = [];
+
     PETS.forEach(pet => {
       if (isPetUnlocked(pet.id)) return;
-      const req = pet.unlockRequirement;
+
       let ok = false;
+      const req = pet.unlockRequirement;
       switch (req.type) {
         case 'cycles':      ok = totalCycles >= req.value; break;
         case 'streak':      ok = currentStreak >= req.value; break;
         case 'focus_time':  ok = totalFocusMinutes >= req.value; break;
         case 'level':       ok = level >= req.value; break;
       }
+
       if (ok) {
         const chance = pet.dropChance ?? 1;
         if (Math.random() < chance) {
+          // dùng unlockPet để cập nhật + phát event
           unlockPet(pet.id);
           newUnlocks.push(pet);
         }
       }
     });
+
     return newUnlocks;
   }, [isPetUnlocked, unlockPet]);
 
