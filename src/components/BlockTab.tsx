@@ -18,13 +18,13 @@ interface App {
 export const BlockTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [apps, setApps] = useState<App[]>([
-    { id: '1', name: 'Instagram', packageName: 'com.instagram.android', icon: '📷', blocked: true },
-    { id: '2', name: 'TikTok', packageName: 'com.tiktok', icon: '🎵', blocked: true },
+    { id: '1', name: 'Instagram', packageName: 'com.instagram.android', icon: '📷', blocked: false },
+    { id: '2', name: 'TikTok', packageName: 'com.tiktok', icon: '🎵', blocked: false },
     { id: '3', name: 'Twitter', packageName: 'com.twitter.android', icon: '🐦', blocked: false },
-    { id: '4', name: 'YouTube', packageName: 'com.google.android.youtube', icon: '📺', blocked: true },
+    { id: '4', name: 'YouTube', packageName: 'com.google.android.youtube', icon: '📺', blocked: false },
     { id: '5', name: 'Facebook', packageName: 'com.facebook.katana', icon: '👥', blocked: false },
     { id: '6', name: 'WhatsApp', packageName: 'com.whatsapp', icon: '💬', blocked: false },
-    { id: '7', name: 'Snapchat', packageName: 'com.snapchat.android', icon: '👻', blocked: true },
+    { id: '7', name: 'Snapchat', packageName: 'com.snapchat.android', icon: '👻', blocked: false },
     { id: '8', name: 'Reddit', packageName: 'com.reddit.frontpage', icon: '🤖', blocked: false },
   ]);
 

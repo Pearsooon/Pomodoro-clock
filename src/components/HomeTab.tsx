@@ -19,24 +19,63 @@ import { PETS } from "@/data/pets";
 
 const EVENT_PET_UNLOCKED = "pet:unlocked";
 
-/** Kiểm tra có app nào đã bị block chưa (đọc vài key phổ biến trong localStorage) */
+/** Kiểm tra đã block app nào chưa (quét rộng localStorage) */
 function hasAnyBlockedApps(): boolean {
-  const KEYS = [
-    "block_apps_v1",
-    "blockedApps",
-    "blocklist_v1",
-    "blocklist",
-    "focus_block_apps",
-  ];
   try {
-    for (const k of KEYS) {
+    const preferred = [
+      "block_apps_v1",
+      "blockedApps",
+      "blocklist_v1",
+      "blocklist",
+      "focus_block_apps",
+      "blockSettings",
+      "notificationBlocks",
+      "blocked_notifications",
+    ];
+    const fields = ["apps", "blocked", "list", "items", "bundleIds", "services"];
+
+    // 1) Thử các key phổ biến trước
+    for (const k of preferred) {
       const raw = localStorage.getItem(k);
       if (!raw) continue;
       const val = JSON.parse(raw);
       if (Array.isArray(val) && val.length > 0) return true;
-      if (val && Array.isArray(val.apps) && val.apps.length > 0) return true;
+      if (val && typeof val === "object") {
+        for (const f of fields) {
+          const arr = (val as any)[f];
+          if (Array.isArray(arr) && arr.length > 0) return true;
+        }
+      }
     }
-  } catch {}
+
+    // 2) Quét toàn bộ localStorage: key có 'block' hoặc 'notif'
+    const re = /(block|notif|noti|mute|silenc)/i;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) ?? "";
+      if (!re.test(key)) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      let val: any;
+      try {
+        val = JSON.parse(raw);
+      } catch {
+        // nếu là chuỗi thuần nhưng có nội dung -> coi như có
+        if (raw.trim().length > 0) return true;
+        continue;
+      }
+
+      if (Array.isArray(val) && val.length > 0) return true;
+      if (val && typeof val === "object") {
+        for (const f of fields) {
+          const arr = val[f];
+          if (Array.isArray(arr) && arr.length > 0) return true;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
   return false;
 }
 
@@ -95,6 +134,18 @@ export const HomeTab: React.FC = () => {
     stopTimer();
     setShowStopDialog(false);
   };
+
+  // 🔄 Tự đóng prompt nếu blocklist thay đổi ở tab khác
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key) return;
+      if (/(block|notif|noti|mute|silenc)/i.test(e.key)) {
+        if (hasAnyBlockedApps()) setShowBlockPrompt(false);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   // Lắng nghe sự kiện mở khóa pet → CHỈ thêm vào queue
   useEffect(() => {
@@ -285,7 +336,7 @@ export const HomeTab: React.FC = () => {
         <DialogContent className="sm:max-w-md mx-4">
           <DialogHeader>
             <DialogTitle>
-              You have not blocked notifications from any apps yet!
+              No blocked apps detected!
             </DialogTitle>
             <DialogDescription>
               Do you want to block notifications before starting your session?
@@ -297,9 +348,7 @@ export const HomeTab: React.FC = () => {
             <Button
               className="flex-1 bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90"
               onClick={() => {
-                try {
-                  localStorage.setItem("active_tab", "block");
-                } catch {}
+                try { localStorage.setItem("active_tab", "block"); } catch {}
                 try {
                   window.dispatchEvent(
                     new CustomEvent("nav:tab", { detail: "block" as const })
