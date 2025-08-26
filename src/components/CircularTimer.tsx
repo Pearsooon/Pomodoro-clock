@@ -36,12 +36,13 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const petSrc = isBreakMode ? (sleepImage || petSleeping) : (petImage || petAwake);
 
   // ===== Time / progress
-  const totalSeconds = Math.max(1, totalMinutes * 60); // tránh chia 0 khi chọn 0 phút
+  const selectedMin = Math.max(0, Math.min(59, totalMinutes));
+  const totalSeconds = Math.max(1, selectedMin * 60); // tránh chia 0
   const currentSeconds = Math.max(0, minutes * 60 + seconds);
 
   // ===== Convert pointer -> minute in [0..59], 12 o'clock = 0, clockwise
   const clientToMinute = useCallback((clientX: number, clientY: number) => {
-    if (!svgRef.current) return totalMinutes;
+    if (!svgRef.current) return selectedMin;
 
     const rect = svgRef.current.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
@@ -52,7 +53,7 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
     if (a < 0) a += 2 * Math.PI;                          // [0, 2PI)
     const m = Math.floor((a / (2 * Math.PI)) * 60);       // snap xuống để bớt rung
     return Math.min(59, Math.max(0, m));
-  }, [totalMinutes]);
+  }, [selectedMin]);
 
   // ===== Drag handlers
   useEffect(() => {
@@ -84,19 +85,27 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
     onMinutesChange(clientToMinute(e.clientX, e.clientY));
   };
 
-  // ===== Knob position from minute -> angle (12h start, clockwise)
+  // ===== Angles & arc lengths
   const angleFromMinute = (m: number) => (m / 60) * 2 * Math.PI - Math.PI / 2;
-  const a = angleFromMinute(totalMinutes);
-  const knobX = center + radius * Math.cos(a);
-  const knobY = center + radius * Math.sin(a);
 
-  // ===== Selection arc length (phần đã chọn) & Progress arc length (phần còn lại)
-  // - Arc VẼ BẮT ĐẦU từ mốc 12h (rotate -90°), ta điều khiển độ dài bằng strokeDasharray.
-  const selectedFrac = Math.max(0, Math.min(1, totalMinutes / 60)); // 0..1
-  const selectedLen = selectedFrac * circumference;                  // vệt xanh khi chưa chạy
+  // Vệt xanh khi chưa chạy: từ 12h -> vị trí knob
+  const selectedFrac = selectedMin / 60;                          // 0..1
+  const selectedLen = selectedFrac * circumference;
 
-  const remainFrac = selectedFrac * (currentSeconds / totalSeconds); // phần còn lại theo thời gian
-  const remainLen = remainFrac * circumference;                      // vệt đỏ khi đang chạy
+  // Vệt đỏ khi đang chạy: co dần từ độ dài đã chọn về 0
+  const remainFrac = selectedFrac * (currentSeconds / totalSeconds);
+  const remainLen = remainFrac * circumference;
+
+  // Vị trí knob:
+  // - Khi chưa chạy: ở vị trí đã chọn (selectedMin)
+  // - Khi chạy: chạy cùng đầu vệt đỏ (tức là phần còn lại)
+  const knobMinute = isRunning
+    ? Math.round(selectedMin * (currentSeconds / totalSeconds))
+    : selectedMin;
+
+  const knobAngle = angleFromMinute(knobMinute);
+  const knobX = center + radius * Math.cos(knobAngle);
+  const knobY = center + radius * Math.sin(knobAngle);
 
   return (
     <div className={cn("relative flex items-center justify-center", className)}>
@@ -108,9 +117,9 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
         onPointerMove={handlePointerMove}
         style={{ touchAction: "none" }} // prevent page scroll on touch
       >
-        {/* Clock tick marks (60 ticks; every 5th is longer & thicker) */}
+        {/* Tick marks */}
         {Array.from({ length: 60 }).map((_, i) => {
-          const tickAngle = (i / 60) * 2 * Math.PI - Math.PI / 2; // 12h start
+          const tickAngle = (i / 60) * 2 * Math.PI - Math.PI / 2;
           const inner = i % 5 === 0 ? radius - 12 : radius - 6;
           const outer = radius;
           const x1 = center + inner * Math.cos(tickAngle);
@@ -141,8 +150,7 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
           fill="none"
         />
 
-        {/* ===== Selection arc (GREEN) – hiển thị khi CHƯA chạy.
-             Dài đúng bằng phần đã chọn từ 12h -> vị trí knob */}
+        {/* Vệt xanh (selection) – KHÔNG transition để kéo mượt */}
         {!isRunning && (
           <g transform={`rotate(-90 ${center} ${center})`}>
             <circle
@@ -155,13 +163,11 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
               strokeDasharray={`${selectedLen} ${circumference}`}
               strokeDashoffset={0}
               strokeLinecap="round"
-              className="transition-all duration-150 ease-linear"
             />
           </g>
         )}
 
-        {/* ===== Progress arc (RED / BREAK) – hiển thị khi ĐANG chạy.
-             Bắt đầu bằng độ dài đúng tại vị trí knob rồi CO DẦN về 0 */}
+        {/* Vệt đỏ (progress) – khi chạy */}
         {isRunning && (
           <g transform={`rotate(-90 ${center} ${center})`}>
             <circle
@@ -171,15 +177,16 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
               stroke={isBreakMode ? "hsl(var(--break-foreground))" : "hsl(var(--destructive))"}
               strokeWidth={strokeWidth}
               fill="none"
-              strokeDasharray={`${remainLen} ${circumference}`} // điều khiển ĐỘ DÀI
-              strokeDashoffset={0}                               // luôn bắt đầu 12h
+              strokeDasharray={`${remainLen} ${circumference}`}
+              strokeDashoffset={0}
               strokeLinecap="round"
-              className="transition-all duration-1000 ease-linear"
+              // giảm delay mỗi giây (nhanh hơn trước)
+              className="transition-all duration-300 ease-linear"
             />
           </g>
         )}
 
-        {/* Invisible hit ring for easy drag/click */}
+        {/* Vòng "hit" để kéo dễ hơn (chỉ khi không chạy) */}
         {!isRunning && (
           <circle
             cx={center}
@@ -194,28 +201,28 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
           />
         )}
 
-        {/* Knob: purely visual (không bắt event) */}
-        {!isRunning && (
-          <circle
-            cx={knobX}
-            cy={knobY}
-            r={16}
-            fill="hsl(var(--primary))"
-            stroke="white"
-            strokeWidth={3}
-            className="shadow-lg"
-            pointerEvents="none"
-            style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.1))" }}
-          />
-        )}
+        {/* Knob luôn hiển thị.
+            - Khi chạy: chỉ là marker (pointerEvents=none)
+            - Khi dừng: vẫn pointerEvents=none (drag đã bắt ở ring) => không giật */}
+        <circle
+          cx={knobX}
+          cy={knobY}
+          r={16}
+          fill="hsl(var(--primary))"
+          stroke="white"
+          strokeWidth={3}
+          className={cn("shadow-lg", isRunning ? "" : "")}
+          pointerEvents="none"
+          style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.1))" }}
+        />
       </svg>
 
-      {/* Pet in center (do not block pointer) */}
+      {/* Pet ở giữa */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <img
           src={petSrc}
           alt={isBreakMode ? "Sleeping pet" : "Awake pet"}
-          className="w-24 h-24 object-contain transition-all duration-500 pointer-events-none"
+          className="w-24 h-24 object-contain pointer-events-none"
         />
       </div>
     </div>
