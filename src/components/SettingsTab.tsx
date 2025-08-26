@@ -7,6 +7,11 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Bell, BarChart3, Download, Info } from 'lucide-react';
+import { useNavigate, useLocation  } from "react-router-dom";
+
+const { pathname } = useLocation();
+const navigate = useNavigate();
+const openInsights = () => { if (pathname !== "/stats") navigate("/stats"); };
 
 const SETTINGS_KEY = 'appSettings';
 const TODO_PREFS_KEY = 'todoReminderPrefs';
@@ -82,7 +87,7 @@ export const SettingsTab: React.FC = () => {
         <p className="text-muted-foreground">Customize your Pomodoro & To-Do experience</p>
       </div>
 
-      {/* Timer Settings: chỉ Break (min) + Save */}
+      {/* Timer Settings */}
       <Card className="p-4 space-y-4">
         <div className="flex items-center gap-2 mb-3">
           <Clock className="w-5 h-5 text-primary" />
@@ -108,7 +113,7 @@ export const SettingsTab: React.FC = () => {
         </div>
       </Card>
 
-      {/* Notifications (Pomodoro) */}
+      {/* Pomodoro Notifications */}
       <Card className="p-4 space-y-4">
         <div className="flex items-center gap-2 mb-3">
           <Bell className="w-5 h-5 text-primary" />
@@ -151,7 +156,7 @@ export const SettingsTab: React.FC = () => {
         </div>
       </Card>
 
-      {/* NEW: To-Do Reminders */}
+      {/* To-Do Reminders */}
       <Card className="p-4 space-y-4">
         <div className="flex items-center gap-2 mb-3">
           <Bell className="w-5 h-5 text-primary" />
@@ -220,6 +225,25 @@ export const SettingsTab: React.FC = () => {
 
         <div className="flex justify-end pt-2">
           <Button onClick={saveAll} className="min-w-[120px]">Save</Button>
+        </div>
+      </Card>
+
+      {/* 🔥 NEW: Insights */}
+      <Card className="p-4 space-y-4">
+        <div className="flex items-center gap-2 mb-3">
+          <BarChart3 className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold">Insights</h3>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            View charts of your Pomodoro hours and active days.
+          </p>
+          <div>
+            <Button onClick={openInsights} className="min-w-[160px]">
+              Focus Insights
+            </Button>
+          </div>
         </div>
       </Card>
 
