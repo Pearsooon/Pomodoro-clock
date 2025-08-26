@@ -79,9 +79,10 @@ export const HomeTab: React.FC = () => {
   const focusBuddy = useMemo(() => PETS.find((p) => p.id === "focus-buddy") || null, []);
 
   const goToBlockTab = useCallback(() => {
-    try { localStorage.setItem("active_tab", "block"); } catch {}
-    navigate("/?tab=block");
-  }, [navigate]);
+  try { localStorage.setItem("active_tab", "block"); } catch {}
+  // một số layout đọc tab từ query, số khác từ hash -> set cả 2 cho chắc
+  window.location.href = "/?tab=block#block";
+}, []);
 
   const handleStartClick = () => {
     if (isRunning) {
@@ -248,51 +249,72 @@ export const HomeTab: React.FC = () => {
       />
 
       {/* Stop confirm */}
-      <Dialog open={showStopDialog} onOpenChange={(open) => !open && setShowStopDialog(false)}>
+      <Dialog
+        open={showStopDialog}
+        onOpenChange={(open) => !open && setShowStopDialog(false)}
+      >
         <DialogContent className="sm:max-w-md mx-4">
           <DialogHeader>
             <DialogTitle>Stop Session?</DialogTitle>
-            <DialogDescription>If you exit, data will not be saved.</DialogDescription>
-          </DialogHeader>
-        </DialogContent>
-      </Dialog>
-
-      {/* 🔔 Prompt: chưa block app nào */}
-      <Dialog open={showBlockPrompt} onOpenChange={(open) => !open && setShowBlockPrompt(false)}>
-        <DialogContent className="sm:max-w-md mx-4">
-          <DialogHeader>
-            <DialogTitle>No blocked apps yet</DialogTitle>
             <DialogDescription>
-              You have not blocked notifications from any apps yet! Do you want to block?
+              If you exit, data will not be saved.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex gap-3 mt-4">
-            {/* No = đỏ, tiếp tục chọn cycle */}
+          {/* ⬇️ nút lựa chọn */}
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowStopDialog(false)}
+              className="flex-1"
+            >
+              Continue
+            </Button>
             <Button
               variant="destructive"
+              onClick={handleStopConfirm}
               className="flex-1"
-              onClick={() => {
-                setShowBlockPrompt(false);
-                setShowCycleModal(true);
-              }}
             >
-              No
-            </Button>
-
-            {/* Yes = cam, đi tới tab Block */}
-            <Button
-              className="flex-1 bg-[#FF6D53] text-white hover:bg-[#FF6D53]/90"
-              onClick={() => {
-                setShowBlockPrompt(false);
-                goToBlockTab();
-              }}
-            >
-              Yes
+              Stop
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+
+      {/* 🔔 Prompt: chưa block app nào */}
+      {/* Block prompt */}
+      <Dialog open={showBlockPrompt} onOpenChange={setShowBlockPrompt}>
+        <DialogContent className="sm:max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle>You have not blocked notifications from any apps yet!</DialogTitle>
+            <DialogDescription>
+              Do you want to block notifications before starting your session?
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* YES (cam) bên trái, NO (đỏ) bên phải */}
+          <div className="flex gap-3 mt-6">
+            <Button
+              onClick={goToBlockTab}
+              className="flex-1 bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90"
+            >
+              Yes
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowBlockPrompt(false);
+                setShowCycleModal(true); // tiếp tục chọn cycle
+              }}
+              className="flex-1"
+            >
+              No
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
 
       {/* ✅ Welcome dialog khi mới vào trang (1 nút, ẩn dấu ✕) */}
       <Dialog open={showWelcome} onOpenChange={(open) => !open && setShowWelcome(false)}>
