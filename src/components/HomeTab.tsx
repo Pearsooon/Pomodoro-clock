@@ -83,6 +83,7 @@ export const HomeTab: React.FC = () => {
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
 
+
   // Gợi ý block khi nhấn Start mà chưa block app nào
   const [showBlockPrompt, setShowBlockPrompt] = useState(false);
 
@@ -418,6 +419,7 @@ export const HomeTab: React.FC = () => {
         onSetAsCompanion={setAsCompanion}
         isUnlocked={true}
       />
+      
     </div>
   );
 };

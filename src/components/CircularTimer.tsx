@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import petAwake from "@/assets/pet-awake.png";
 import petSleeping from "@/assets/pet-sleeping.png";
-import { Info } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast"; // ⬅️ shadcn toast hook
+import { Info, X } from "lucide-react";
 
 interface CircularTimerProps {
   minutes: number;
@@ -28,8 +27,8 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   petImage,
   sleepImage,
 }) => {
-  const { toast } = useToast(); // ⬅️ dùng để bắn popup
   const [dragging, setDragging] = useState(false);
+  const [showHowToTip, setShowHowToTip] = useState(false); // ⬅️ tip nổi góc phải
   const svgRef = useRef<SVGSVGElement>(null);
 
   // ===== Layout constants
@@ -110,15 +109,6 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const knobX = center + radius * Math.cos(knobAngle);
   const knobY = center + radius * Math.sin(knobAngle);
 
-  // ===== Popup for mobile & desktop
-  const showHelp = () =>
-    toast({
-      title: "How to set time",
-      description:
-        "Slide the orange knob around the ring to adjust minutes. Tip: tap anywhere on the ring to jump there.",
-      duration: 4500, // ms
-    });
-
   return (
     <div className={cn("relative flex items-center justify-center", className)}>
       {/* Info button overlay (mobile friendly) */}
@@ -126,10 +116,10 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
         <button
           type="button"
           aria-label="Help: slide to adjust time"
-          onClick={showHelp}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-muted-foreground/40 bg-background/80 backdrop-blur hover:bg-background"
+          onClick={() => setShowHowToTip(true)} // ⬅️ bật tip nổi
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-muted-foreground/40 bg-background/80 backdrop-blur hover:bg-background focus:outline-none focus:ring-2 focus:ring-primary"
         >
-          <Info className="h-4 w-4" />
+          <Info className="h-5 w-5" />
         </button>
       </div>
 
@@ -245,6 +235,40 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
           className="w-24 h-24 object-contain pointer-events-none"
         />
       </div>
+
+      {/* ===== Tip nổi góc phải — to hơn, có nút ✕ chuẩn ===== */}
+      {showHowToTip && (
+  <div
+    className="
+      fixed z-[60]
+      right-3 top-[calc(env(safe-area-inset-top,0px)+12px)]
+      w-[88vw] max-w-sm
+      rounded-lg border bg-card/95 text-card-foreground
+      shadow-md backdrop-blur supports-[backdrop-filter]:bg-card/80
+      sm:right-6 sm:top-6 sm:w-96 sm:max-w-none sm:shadow-xl
+    "
+  >
+    <div className="flex items-start p-3 sm:p-4">
+      <div className="flex-1 text-sm sm:text-base">
+        <b>How to set time: </b>
+        Slide the orange knob around the ring to adjust minutes. Click Start then choose number of repeated cycles
+      </div>
+      <button
+        aria-label="Dismiss tip"
+        onClick={() => setShowHowToTip(false)}
+        className="
+          ml-2 sm:ml-3 inline-flex items-center justify-center
+          w-8 h-8 sm:w-9 sm:h-9 rounded-full
+          opacity-100 active:scale-95 transition
+          focus:outline-none focus:ring-2 focus:ring-primary
+        "
+      >
+        <X className="w-4 h-4 sm:w-5 sm:h-5" />
+      </button>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };

@@ -34,6 +34,7 @@ const LS_SNAPSHOTS = 'todo_snapshots_v1';
 const LS_LAST_RESET = 'todo_last_reset_v1';
 const TODO_PREFS_KEY = 'todoReminderPrefs';
 
+
 function getTodoPrefs() {
   try {
     const raw = localStorage.getItem(TODO_PREFS_KEY);
@@ -70,6 +71,8 @@ export const TodoTab: React.FC = () => {
   const { toast } = useToast();
 
   // ---- state & persistence
+  const [showEmptyAlert, setShowEmptyAlert] = useState(false);
+
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
       const raw = localStorage.getItem(LS_TASKS);
@@ -195,9 +198,12 @@ export const TodoTab: React.FC = () => {
   }, [snapshots, tasks]);
 
   // ---- CRUD
-  const addTask = (dateFor: string, title: string) => {
+  const addTask = (dateFor: string, title: string): boolean => {
     const v = title.trim();
-    if (!v) return;
+    if (!v) {
+      setShowEmptyAlert(true);
+      return false;
+    }
     const now = new Date();
     const task: Task = {
       id: String(now.getTime()) + Math.random().toString(36).slice(2),
@@ -208,7 +214,9 @@ export const TodoTab: React.FC = () => {
       createdTime: hhmmNow(),
     };
     setTasks(prev => [task, ...prev]);
+    return true;
   };
+
   const addTaskToday = () => addTask(today, newTaskToday);
   const addTaskTomorrow = () => addTask(tomorrow, newTaskTomorrow);
 
@@ -318,14 +326,15 @@ export const TodoTab: React.FC = () => {
                 onChange={(e) => setNewTaskToday(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    addTaskToday();
-                    setNewTaskToday('');
+                    if (addTaskToday()) setNewTaskToday('');
                   }
                 }}
                 className="flex-1"
               />
               <Button
-                onClick={() => { addTaskToday(); setNewTaskToday(''); }}
+                onClick={() => {
+                  if (addTaskToday()) setNewTaskToday('');
+                }}
                 size="icon"
                 className="shrink-0"
               >
@@ -355,14 +364,15 @@ export const TodoTab: React.FC = () => {
                 onChange={(e) => setNewTaskTomorrow(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    addTaskTomorrow();
-                    setNewTaskTomorrow('');
+                    if (addTaskTomorrow()) setNewTaskTomorrow('');
                   }
                 }}
                 className="flex-1"
               />
               <Button
-                onClick={() => { addTaskTomorrow(); setNewTaskTomorrow(''); }}
+                onClick={() => {
+                  if (addTaskTomorrow()) setNewTaskTomorrow('');
+                }}
                 size="icon"
                 className="shrink-0"
               >
@@ -482,9 +492,48 @@ export const TodoTab: React.FC = () => {
                 </Card>
               ))
             )}
+            
+
           </div>
         </TabsContent>
       </Tabs>
+      {showEmptyAlert && (
+        <div
+          className="
+            fixed z-[60]
+            right-3 top-[calc(env(safe-area-inset-top,0px)+12px)]
+            w-[88vw] max-w-sm
+            rounded-lg border border-destructive/40
+            bg-destructive/90 text-destructive-foreground
+            shadow-md backdrop-blur supports-[backdrop-filter]:bg-destructive/80
+            sm:right-6 sm:top-6 sm:w-96 sm:max-w-none sm:shadow-xl
+          "
+          role="alert"
+          aria-live="assertive"
+        >
+          <div className="flex items-start p-3 sm:p-4">
+            <div className="flex-1 text-sm sm:text-base">
+              <b>Task content required</b> — Please enter a task title before adding.
+            </div>
+            <button
+              aria-label="Dismiss"
+              onClick={() => setShowEmptyAlert(false)}
+              className="
+                ml-2 sm:ml-3 inline-flex items-center justify-center
+                w-8 h-8 sm:w-9 sm:h-9 rounded-full
+                opacity-100 active:scale-95 transition
+                focus:outline-none focus:ring-2 focus:ring-background/70
+              "
+            >
+              {/* dùng icon X từ lucide-react */}
+              <svg viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

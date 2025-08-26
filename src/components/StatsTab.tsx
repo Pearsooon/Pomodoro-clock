@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BottomNavigation } from "@/components/BottomNavigation";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -55,25 +54,37 @@ const StatsTab: React.FC = () => {
 
   return (
     <div className="p-6 pb-24 space-y-6">
-      {/* Top bar */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/", { state: { tab: "settings" } })}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Settings
-        </Button>
-        <h1 className="text-xl font-semibold">Focus Insights</h1>
-        <div className="w-[130px]" /> {/* spacer */}
+      {/* Top bar — click area chuẩn & title luôn ở giữa */}
+      <div className="grid grid-cols-3 items-center">
+      {/* Back button: hitbox vuông vắn, inline-flex để click phủ toàn bộ */}
+        <button
+        aria-label="Back to Settings"
+        onClick={() => navigate("/", { state: { tab: "settings" } })}
+        className="justify-self-start inline-flex items-center justify-center w-12 h-12 rounded-full hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+        <ArrowLeft className="w-7 h-7 text-primary" />
+      </button>
+
+      {/* Title block */}
+      <div className="justify-self-center text-center">
+        <h1 className="text-2xl font-bold leading-tight">Focus Insights</h1>
+        <p className="text-sm text-muted-foreground">Your last 14 days of focus time</p>
       </div>
 
-      <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
-        <span
+      {/* Spacer cùng kích thước nút back để hai bên cân nhau */}
+      <div className="justify-self-end w-12 h-12" />
+      </div>
+
+      {/* Breadcrumb */}
+      <div className="text-xs text-muted-foreground -mt-1">
+        <button
           className="cursor-pointer hover:underline"
-          onClick={() => navigate("/settings")}
+          onClick={() => navigate("/", { state: { tab: "settings" } })}
         >
-          Setting
-        </span>
-        <span>›</span>
-        <span className="font-semibold">Insight</span>
+          Settings
+        </button>
+        <span className="mx-1">›</span>
+        <span className="font-semibold">Insights</span>
       </div>
 
       {/* Summary */}
@@ -111,36 +122,37 @@ const StatsTab: React.FC = () => {
         </div>
       </Card>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Total hours (7d)</div>
-          <div className="text-2xl font-bold">{totalHours7d}h</div>
+      {/* KPIs (compact) */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-3">
+          <div className="text-[11px] sm:text-xs text-muted-foreground">Total hours (7d)</div>
+          <div className="text-xl sm:text-2xl font-bold">{totalHours7d}h</div>
         </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Avg/day (14d)</div>
-          <div className="text-2xl font-bold">{avgDay14d}h</div>
+        <Card className="p-3">
+          <div className="text-[11px] sm:text-xs text-muted-foreground">Avg/day (14d)</div>
+          <div className="text-xl sm:text-2xl font-bold">{avgDay14d}h</div>
         </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Active days (14d)</div>
-          <div className="text-2xl font-bold">{activeDays14d}</div>
+        <Card className="p-3">
+          <div className="text-[11px] sm:text-xs text-muted-foreground">Active days (14d)</div>
+          <div className="text-xl sm:text-2xl font-bold">{activeDays14d}</div>
         </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Best day</div>
-          <div className="text-2xl font-bold">{bestDay.date} • {bestDay.hours}h</div>
+        <Card className="p-3">
+          <div className="text-[11px] sm:text-xs text-muted-foreground">Best day</div>
+          <div className="text-xl sm:text-2xl font-bold">
+            {bestDay.date} • {bestDay.hours}h
+          </div>
         </Card>
       </div>
 
       {/* Chart area */}
-      <Card className="p-4">
-        {/* title under card to keep consistent spacing */}
-        <h3 className="font-medium text-sm mb-2">
-          Daily focus hours (no tooltip; mobile-friendly)
+      <Card className="p-3 sm:p-4">
+        <h3 className="font-medium text-[13px] sm:text-sm mb-2">
+          Daily focus hours
         </h3>
 
         {/* BAR – VERTICAL */}
         {chartType === "bar-vertical" && (
-          <div className="relative h-64">
+          <div className="relative h-72 sm:h-64">
             {/* grid lines + y labels */}
             {Array.from({ length: 4 }).map((_, i) => {
               const y = (i * 100) / 4;
