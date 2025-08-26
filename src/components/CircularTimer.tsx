@@ -3,12 +3,7 @@ import { cn } from "@/lib/utils";
 import petAwake from "@/assets/pet-awake.png";
 import petSleeping from "@/assets/pet-sleeping.png";
 import { Info } from "lucide-react";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
+import { useToast } from "@/components/ui/use-toast"; // ⬅️ shadcn toast hook
 
 interface CircularTimerProps {
   minutes: number;
@@ -33,6 +28,7 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   petImage,
   sleepImage,
 }) => {
+  const { toast } = useToast(); // ⬅️ dùng để bắn popup
   const [dragging, setDragging] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -114,140 +110,141 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const knobX = center + radius * Math.cos(knobAngle);
   const knobY = center + radius * Math.sin(knobAngle);
 
+  // ===== Popup for mobile & desktop
+  const showHelp = () =>
+    toast({
+      title: "How to set time",
+      description:
+        "Slide the orange knob around the ring to adjust minutes. Tip: tap anywhere on the ring to jump there.",
+      duration: 4500, // ms
+    });
+
   return (
-    <TooltipProvider delayDuration={150}>
-      <div className={cn("relative flex items-center justify-center", className)}>
-        {/* Info button overlay góc trên-phải */}
-        <div className="absolute right-2 top-2 z-10">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Help: slide to adjust time"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-muted-foreground/40 bg-background/80 backdrop-blur hover:bg-background"
-              >
-                <Info className="h-4 w-4" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left" align="start" className="max-w-[220px] text-sm">
-              Slide the button around the ring to adjust time.
-            </TooltipContent>
-          </Tooltip>
-        </div>
-
-        <svg
-          ref={svgRef}
-          width={center * 2}
-          height={center * 2}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          style={{ touchAction: "none" }} // prevent page scroll on touch
+    <div className={cn("relative flex items-center justify-center", className)}>
+      {/* Info button overlay (mobile friendly) */}
+      <div className="absolute right-2 top-2 z-10">
+        <button
+          type="button"
+          aria-label="Help: slide to adjust time"
+          onClick={showHelp}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-muted-foreground/40 bg-background/80 backdrop-blur hover:bg-background"
         >
-          {/* Tick marks */}
-          {Array.from({ length: 60 }).map((_, i) => {
-            const tickAngle = (i / 60) * 2 * Math.PI - Math.PI / 2;
-            const inner = i % 5 === 0 ? radius - 12 : radius - 6;
-            const outer = radius;
-            const x1 = center + inner * Math.cos(tickAngle);
-            const y1 = center + inner * Math.sin(tickAngle);
-            const x2 = center + outer * Math.cos(tickAngle);
-            const y2 = center + outer * Math.sin(tickAngle);
-            return (
-              <line
-                key={i}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke="hsl(var(--muted-foreground))"
-                strokeWidth={i % 5 === 0 ? 3 : 1.5}
-                strokeLinecap="round"
-              />
-            );
-          })}
+          <Info className="h-4 w-4" />
+        </button>
+      </div>
 
-          {/* Background ring */}
-          <circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke="hsl(var(--border))"
-            strokeWidth={strokeWidth}
-            fill="none"
-          />
+      <svg
+        ref={svgRef}
+        width={center * 2}
+        height={center * 2}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        style={{ touchAction: "none" }} // prevent page scroll on touch
+      >
+        {/* Tick marks */}
+        {Array.from({ length: 60 }).map((_, i) => {
+          const tickAngle = (i / 60) * 2 * Math.PI - Math.PI / 2;
+          const inner = i % 5 === 0 ? radius - 12 : radius - 6;
+          const outer = radius;
+          const x1 = center + inner * Math.cos(tickAngle);
+          const y1 = center + inner * Math.sin(tickAngle);
+          const x2 = center + outer * Math.cos(tickAngle);
+          const y2 = center + outer * Math.sin(tickAngle);
+          return (
+            <line
+              key={i}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke="hsl(var(--muted-foreground))"
+              strokeWidth={i % 5 === 0 ? 3 : 1.5}
+              strokeLinecap="round"
+            />
+          );
+        })}
 
-          {/* Vệt xanh (selection) */}
-          {!isRunning && (
-            <g transform={`rotate(-90 ${center} ${center})`}>
-              <circle
-                cx={center}
-                cy={center}
-                r={radius}
-                stroke="hsl(var(--success))"
-                strokeWidth={strokeWidth}
-                fill="none"
-                strokeDasharray={`${selectedLen} ${circumference}`}
-                strokeDashoffset={0}
-                strokeLinecap="round"
-              />
-            </g>
-          )}
+        {/* Background ring */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke="hsl(var(--border))"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
 
-          {/* Vệt đỏ (progress) */}
-          {isRunning && (
-            <g transform={`rotate(-90 ${center} ${center})`}>
-              <circle
-                cx={center}
-                cy={center}
-                r={radius}
-                stroke={isBreakMode ? "hsl(var(--break-foreground))" : "hsl(var(--destructive))"}
-                strokeWidth={strokeWidth}
-                fill="none"
-                strokeDasharray={`${remainLen} ${circumference}`}
-                strokeDashoffset={0}
-                strokeLinecap="round"
-                className="transition-all duration-300 ease-linear"
-              />
-            </g>
-          )}
-
-          {/* Vòng "hit" để kéo dễ hơn (chỉ khi không chạy) */}
-          {!isRunning && (
+        {/* Vệt xanh (selection) */}
+        {!isRunning && (
+          <g transform={`rotate(-90 ${center} ${center})`}>
             <circle
               cx={center}
               cy={center}
               r={radius}
+              stroke="hsl(var(--success))"
+              strokeWidth={strokeWidth}
               fill="none"
-              stroke="transparent"
-              strokeWidth={40}
-              pointerEvents="stroke"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
+              strokeDasharray={`${selectedLen} ${circumference}`}
+              strokeDashoffset={0}
+              strokeLinecap="round"
             />
-          )}
+          </g>
+        )}
 
-          {/* Knob */}
+        {/* Vệt đỏ (progress) */}
+        {isRunning && (
+          <g transform={`rotate(-90 ${center} ${center})`}>
+            <circle
+              cx={center}
+              cy={center}
+              r={radius}
+              stroke={isBreakMode ? "hsl(var(--break-foreground))" : "hsl(var(--destructive))"}
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeDasharray={`${remainLen} ${circumference}`}
+              strokeDashoffset={0}
+              strokeLinecap="round"
+              className="transition-all duration-300 ease-linear"
+            />
+          </g>
+        )}
+
+        {/* Vòng "hit" để kéo dễ hơn (chỉ khi không chạy) */}
+        {!isRunning && (
           <circle
-            cx={knobX}
-            cy={knobY}
-            r={KNOB_R}
-            fill="hsl(var(--primary))"
-            stroke="white"
-            strokeWidth={3}
-            pointerEvents="none"
-            style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.1))" }}
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="none"
+            stroke="transparent"
+            strokeWidth={40}
+            pointerEvents="stroke"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
           />
-        </svg>
+        )}
 
-        {/* Pet ở giữa */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <img
-            src={petSrc}
-            alt={isBreakMode ? "Sleeping pet" : "Awake pet"}
-            className="w-24 h-24 object-contain pointer-events-none"
-          />
-        </div>
+        {/* Knob */}
+        <circle
+          cx={knobX}
+          cy={knobY}
+          r={KNOB_R}
+          fill="hsl(var(--primary))"
+          stroke="white"
+          strokeWidth={3}
+          pointerEvents="none"
+          style={{ filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.1))" }}
+        />
+      </svg>
+
+      {/* Pet ở giữa */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <img
+          src={petSrc}
+          alt={isBreakMode ? "Sleeping pet" : "Awake pet"}
+          className="w-24 h-24 object-contain pointer-events-none"
+        />
       </div>
-    </TooltipProvider>
+    </div>
   );
 };
