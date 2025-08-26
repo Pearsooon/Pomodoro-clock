@@ -15,6 +15,7 @@ import { usePomodoro } from "@/hooks/usePomodoro";
 import { usePetCollection } from "@/hooks/usePetCollection";
 import { cn } from "@/lib/utils";
 import type { Pet } from "@/types/pet";
+import { PETS } from "@/data/pets"; // ⬅️ dùng để lấy ảnh Focus Buddy
 
 const EVENT_PET_UNLOCKED = "pet:unlocked";
 
@@ -46,6 +47,8 @@ export const HomeTab: React.FC = () => {
     stopTimer,
     setWorkMinutes,
   } = usePomodoro();
+
+  const focusBuddy = useMemo(() => PETS.find(p => p.id === "focus-buddy") || null, []);
 
   const handleStartClick = () => {
     if (isRunning) setShowStopDialog(true);
@@ -83,9 +86,9 @@ export const HomeTab: React.FC = () => {
     }
   }, []);
 
-  const closeWelcome = () => setShowWelcome(false);
-  const setFocusBuddyAndCloseWelcome = () => {
-    // ID mặc định của pet đầu tiên là 'focus-buddy'
+  // Nút Let's go
+  const letsGo = () => {
+    // Pet đầu tiên vốn là mặc định, nhưng set lại để chắc chắn
     setAsCompanion("focus-buddy");
     setShowWelcome(false);
   };
@@ -130,7 +133,7 @@ export const HomeTab: React.FC = () => {
     awardSessionXP,
   ]);
 
-  // Khi KHÔNG ở break (tức break vừa xong hoặc đã completed) → nếu có queue & chưa mở modal → bật modal
+  // Khi KHÔNG ở break → nếu có queue & chưa mở modal → bật modal
   useEffect(() => {
     const notInBreak = phase !== "break";
     if (notInBreak && !unlockedPet && pendingUnlockedPets.length > 0) {
@@ -226,28 +229,26 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ✅ Welcome dialog khi mới vào trang */}
-      <Dialog
-        open={showWelcome}
-        onOpenChange={(open) => {
-          if (!open) closeWelcome();
-        }}
-      >
-        <DialogContent className="sm:max-w-md mx-4">
+      {/* ✅ Welcome dialog khi mới vào trang (1 nút, ẩn dấu ✕) */}
+      <Dialog open={showWelcome} onOpenChange={(open) => !open && setShowWelcome(false)}>
+        <DialogContent className="sm:max-w-md mx-4 [&_[aria-label='Close']]:hidden">
+          {/* ^ tailwind selector: ẩn mọi phần tử con có aria-label='Close' (nút ✕ của Dialog) */}
           <DialogHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="relative">
                 <div className="absolute inset-0 rounded-full animate-ping bg-blue-300/60" />
                 <div className="relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background border-blue-400">
                   <img
-                    src={currentCompanion?.image}
+                    src={focusBuddy?.image || currentCompanion?.image}
                     alt="Focus Buddy"
                     className="w-12 h-12 object-contain"
                   />
                 </div>
               </div>
             </div>
-            <DialogTitle className="text-xl">Meet Focus Buddy! Your first Pomodoro pet.</DialogTitle>
+            <DialogTitle className="text-xl">
+              Meet Focus Buddy! Your first Pomodoro pet.
+            </DialogTitle>
           </DialogHeader>
 
           <div className="text-center space-y-4">
@@ -255,14 +256,9 @@ export const HomeTab: React.FC = () => {
               Start focusing with Focus Buddy and earn more pets!
             </p>
 
-            <div className="flex gap-3 mt-6">
-              <Button variant="outline" onClick={closeWelcome} className="flex-1">
-                View Later
-              </Button>
-              <Button onClick={setFocusBuddyAndCloseWelcome} className="flex-1">
-                Set as Companion
-              </Button>
-            </div>
+            <Button onClick={letsGo} className="w-full">
+              Let&apos;s go
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
