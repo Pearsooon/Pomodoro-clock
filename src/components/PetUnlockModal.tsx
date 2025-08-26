@@ -1,16 +1,18 @@
-import React from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Lock } from "lucide-react";
-import { Pet, RARITY_STYLES } from "@/types/pet";
-import { cn } from "@/lib/utils";
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Lock } from 'lucide-react';
+import { Pet, RARITY_STYLES } from '@/types/pet';
+import { cn } from '@/lib/utils';
 
 interface PetUnlockModalProps {
   pet: Pet | null;
   isOpen: boolean;
   onClose: () => void;
   onSetAsCompanion?: (petId: string) => void;
-  isUnlocked?: boolean; // locked/unlocked UI toggle
+  isUnlocked?: boolean;
+  /** 'unlock' = như cũ, 'welcome' = hiện text chào mừng */
+  mode?: 'unlock' | 'welcome';
 }
 
 export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
@@ -19,16 +21,15 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
   onClose,
   onSetAsCompanion,
   isUnlocked = true,
+  mode = 'unlock',
 }) => {
   if (!pet) return null;
 
-  // Only close when dialog transitions to closed
   const handleOpenChange = (open: boolean) => {
     if (!open) onClose();
   };
 
   if (!isUnlocked) {
-    // Locked UI
     return (
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md mx-4">
@@ -40,16 +41,13 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             <p className="text-sm">This pet is currently locked.</p>
           </div>
           <div className="flex justify-center mt-4">
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
+            <Button variant="outline" onClick={onClose}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
-  // Unlocked UI
   const rarityStyle = RARITY_STYLES[pet.rarity];
 
   return (
@@ -61,13 +59,13 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
               <div
                 className={cn(
                   "absolute inset-0 rounded-full animate-ping",
-                  pet.rarity === "Legendary"
-                    ? "bg-yellow-400"
-                    : pet.rarity === "Epic"
-                    ? "bg-purple-400"
-                    : pet.rarity === "Rare"
-                    ? "bg-blue-400"
-                    : "bg-gray-400"
+                  pet.rarity === 'Legendary'
+                    ? 'bg-yellow-400'
+                    : pet.rarity === 'Epic'
+                    ? 'bg-purple-400'
+                    : pet.rarity === 'Rare'
+                    ? 'bg-blue-400'
+                    : 'bg-gray-400'
                 )}
               />
               <div
@@ -81,14 +79,30 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <DialogTitle className="text-xl">New Pet Unlocked!</DialogTitle>
-          </div>
+          {/* Unlock mode giữ nguyên tiêu đề cũ, Welcome mode dùng 2 dòng custom */}
+          {mode === 'unlock' && (
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <DialogTitle className="text-xl">New Pet Unlocked!</DialogTitle>
+            </div>
+          )}
         </DialogHeader>
 
         <div className="text-center space-y-4">
-          <h3 className="text-lg font-semibold text-foreground mb-1">{pet.name}</h3>
-          <p className="text-sm text-muted-foreground px-2">{pet.description}</p>
+          {mode === 'welcome' ? (
+            <>
+              <h3 className="text-lg font-semibold text-foreground">
+                Meet {pet.name}! Your first Pomodoro pet.
+              </h3>
+              <p className="text-sm text-muted-foreground px-2">
+                Start focusing with {pet.name} and earn more pets!
+              </p>
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-semibold text-foreground mb-1">{pet.name}</h3>
+              <p className="text-sm text-muted-foreground px-2">{pet.description}</p>
+            </>
+          )}
 
           <div className="flex gap-3 mt-6">
             <Button variant="outline" onClick={onClose} className="flex-1">
