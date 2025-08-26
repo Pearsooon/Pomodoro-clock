@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useFocusStats } from "@/hooks/useFocusStats";
 import {
   Dialog,
   DialogContent,
@@ -34,8 +33,6 @@ export const HomeTab: React.FC = () => {
 
   const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
     usePetCollection();
-
-  const { logAppOpen, logSession } = useFocusStats();
 
   const {
     minutes,
@@ -121,7 +118,6 @@ export const HomeTab: React.FC = () => {
     // Cộng XP khi hoàn tất toàn bộ buổi học
     if (prevPhase.current === "work" && phase === "completed") {
       const xp = awardSessionXP(totalMinutes, totalCycles);
-      logSession(totalMinutes, totalCycles);
       console.log(
         `[XP] +${xp} XP to companion for session: ${totalMinutes}m × ${totalCycles} cycles`
       );

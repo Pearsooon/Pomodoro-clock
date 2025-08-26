@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Bell, BarChart3, Download, Info } from 'lucide-react';
+import { Clock, Bell, Download, Info } from 'lucide-react';
 
 const SETTINGS_KEY = 'appSettings';
 const TODO_PREFS_KEY = 'todoReminderPrefs';
