@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -9,42 +9,30 @@ import petAwake from '@/assets/pet-awake.png';
 
 export const PetTab: React.FC = () => {
   const [activeView, setActiveView] = useState<'stats' | 'gallery'>('stats');
-  const { currentCompanion, userPets, getPetProgress } = usePetCollection();
-  
-  // Mock pet data - in a real app this would come from a store/database
-  const petData = {
-    level: 5,
-    xp: 750,
-    xpToNextLevel: 1000,
-    totalCycles: 47,
-    currentStreak: 8
-  };
+  const { currentCompanion, getPetProgress } = usePetCollection();
 
   const companionProgress = currentCompanion ? getPetProgress(currentCompanion.id) : null;
-
-  const xpProgress = (petData.xp / petData.xpToNextLevel) * 100;
+  const level = companionProgress?.level ?? 1;
+  const xp = companionProgress?.xp ?? 0;
+  const xpToNextLevel = companionProgress?.xpToNextLevel ?? 1000;
+  const xpProgress = useMemo(
+    () => Math.min(100, Math.max(0, (xp / xpToNextLevel) * 100)),
+    [xp, xpToNextLevel]
+  );
 
   if (activeView === 'gallery') {
     return (
       <div className="p-6 pb-20 space-y-6">
         <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={() => setActiveView('stats')}
-            className="flex items-center gap-2"
-          >
+          <Button variant="ghost" onClick={() => setActiveView('stats')} className="flex items-center gap-2">
             <User className="w-4 h-4" />
             My Pet
           </Button>
-          <Button
-            variant="default"
-            className="flex items-center gap-2"
-          >
+          <Button variant="default" className="flex items-center gap-2">
             <Grid3X3 className="w-4 h-4" />
             Gallery
           </Button>
         </div>
-        
         <PetGallery />
       </div>
     );
@@ -52,12 +40,9 @@ export const PetTab: React.FC = () => {
 
   return (
     <div className="p-6 pb-20 space-y-6">
-      {/* Header with navigation */}
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <Button
-          variant="default"
-          className="flex items-center gap-2"
-        >
+        <Button variant="default" className="flex items-center gap-2">
           <User className="w-4 h-4" />
           My Pet
         </Button>
@@ -87,34 +72,30 @@ export const PetTab: React.FC = () => {
             />
             {/* Level badge */}
             <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold">
-              {companionProgress?.level || petData.level}
+              {level}
             </div>
           </div>
         </div>
-        
+
         <h2 className="text-xl font-semibold text-foreground mb-2">
           {currentCompanion?.name || 'Focus Buddy'}
         </h2>
-        <p className="text-muted-foreground mb-4">
-          Level {companionProgress?.level || petData.level} Pet
-        </p>
-        
+        <p className="text-muted-foreground mb-4">Level {level} Pet</p>
+
         {/* XP Progress */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span>XP Progress</span>
-            <span>
-              {companionProgress?.xp || petData.xp}/{companionProgress?.xpToNextLevel || petData.xpToNextLevel}
-            </span>
+            <span>{xp}/{xpToNextLevel}</span>
           </div>
           <Progress value={xpProgress} className="h-2" />
           <p className="text-xs text-muted-foreground">
-            {(companionProgress?.xpToNextLevel || petData.xpToNextLevel) - (companionProgress?.xp || petData.xp)} XP until next level
+            {Math.max(0, xpToNextLevel - xp)} XP until next level
           </p>
         </div>
       </Card>
 
-      {/* Stats cards */}
+      {/* Simple stats — tuỳ bạn bind dữ liệu thật nếu có */}
       <div className="grid grid-cols-1 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
@@ -122,8 +103,8 @@ export const PetTab: React.FC = () => {
               <Trophy className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1">
-              <div className="text-2xl font-bold text-foreground">{petData.totalCycles}</div>
-              <div className="text-sm text-muted-foreground">Total Cycles</div>
+              <div className="text-2xl font-bold text-foreground">{level}</div>
+              <div className="text-sm text-muted-foreground">Pet Level</div>
             </div>
           </div>
         </Card>
@@ -134,8 +115,8 @@ export const PetTab: React.FC = () => {
               <Flame className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1">
-              <div className="text-2xl font-bold text-foreground">{petData.currentStreak}</div>
-              <div className="text-sm text-muted-foreground">Day Streak</div>
+              <div className="text-2xl font-bold text-foreground">{xp}</div>
+              <div className="text-sm text-muted-foreground">Current XP</div>
             </div>
           </div>
         </Card>
@@ -146,8 +127,8 @@ export const PetTab: React.FC = () => {
               <Target className="w-5 h-5 text-primary" />
             </div>
             <div className="flex-1">
-              <div className="text-2xl font-bold text-foreground">{Math.floor(petData.totalCycles * 25 / 60)}h</div>
-              <div className="text-sm text-muted-foreground">Focus Time</div>
+              <div className="text-2xl font-bold text-foreground">{xpToNextLevel - xp}</div>
+              <div className="text-sm text-muted-foreground">XP to Next Level</div>
             </div>
           </div>
         </Card>
@@ -159,15 +140,15 @@ export const PetTab: React.FC = () => {
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-            Complete Pomodoro cycles to earn XP
+            Complete Pomodoro sessions to earn XP
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-            Each completed work session = 1 XP point
+            <span>XP per session = <b>minutes × cycles</b> (e.g., 20m × 3 = <b>60 XP</b>)</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-            Level up unlocks new pet animations
+            Level up every <b>1000 XP</b>
           </div>
         </div>
       </Card>
