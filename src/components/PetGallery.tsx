@@ -14,6 +14,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu";
 import { Card } from "@/components/ui/card";
 
@@ -109,23 +111,31 @@ export const PetGallery: React.FC = () => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Show</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setViewFilter("all")}>
-              All Pets
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setViewFilter("owned")}>
-              Owned
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setViewFilter("locked")}>
-              Locked
-            </DropdownMenuItem>
+            {/* ✅ Radio group hiển thị option đang chọn */}
+            <DropdownMenuRadioGroup
+              value={viewFilter}
+              onValueChange={(v) => setViewFilter(v as ViewFilter)}
+            >
+              <DropdownMenuRadioItem value="all">All Pets</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="owned">Owned</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="locked">Locked</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+
             <DropdownMenuSeparator />
+
             <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => setSortMode("rarity_asc")}>
-              Rarity: Low → High
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortMode("rarity_desc")}>
-              Rarity: High → Low
-            </DropdownMenuItem>
+            <DropdownMenuRadioGroup
+              value={sortMode}
+              onValueChange={(v) => setSortMode(v as SortMode)}
+            >
+              <DropdownMenuRadioItem value="none">Default</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="rarity_asc">
+                Rarity: Low → High
+              </DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="rarity_desc">
+                Rarity: High → Low
+              </DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -133,13 +143,12 @@ export const PetGallery: React.FC = () => {
       {/* Grid */}
       <div className="grid grid-cols-2 gap-4">
         {filteredPets.map((pet) => {
-          const isUnlocked = isPetUnlocked(pet.id);
+          const unlocked = isPetUnlocked(pet.id);
           const isCompanion =
             userPets.find((up) => up.petId === pet.id)?.isCompanion || false;
           const progress = getPetProgress(pet.id);
 
-          // Nếu bị khóa: ẩn ảnh/tên/độ hiếm -> chỉ hiển thị thẻ Locked
-          if (!isUnlocked) {
+          if (!unlocked) {
             return (
               <Card
                 key={pet.id}
