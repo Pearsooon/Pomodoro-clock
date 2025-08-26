@@ -306,8 +306,7 @@ export const HomeTab: React.FC = () => {
       </Dialog>
 
 
-      {/* 🔔 Prompt: chưa block app nào */}
-      {/* Block prompt */}
+      {/* Prompt nhắc block notifications */}
       <Dialog open={showBlockPrompt} onOpenChange={setShowBlockPrompt}>
         <DialogContent className="sm:max-w-md mx-4">
           <DialogHeader>
@@ -317,27 +316,33 @@ export const HomeTab: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {/* YES (cam) bên trái, NO (đỏ) bên phải */}
+          {/* YES bên trái (cam) – NO bên phải (đỏ) */}
           <div className="flex gap-3 mt-6">
             <Button
-              onClick={goToBlockTab}
               className="flex-1 bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90"
+              onClick={() => {
+                try { localStorage.setItem("active_tab", "block"); } catch {}
+                try { window.dispatchEvent(new CustomEvent("nav:tab", { detail: "block" as const })); } catch {}
+                setShowBlockPrompt(false);
+              }}
             >
               Yes
             </Button>
+
             <Button
               variant="destructive"
+              className="flex-1"
               onClick={() => {
                 setShowBlockPrompt(false);
-                setShowCycleModal(true); // tiếp tục chọn cycle
+                setShowCycleModal(true); // tiếp tục chọn cycle như bình thường
               }}
-              className="flex-1"
             >
               No
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
 
 
       {/* ✅ Welcome dialog khi mới vào trang (1 nút, ẩn dấu ✕) */}

@@ -7,72 +7,45 @@ import { BlockTab } from "@/components/BlockTab";
 import { SettingsTab } from "@/components/SettingsTab";
 
 type TabId = "home" | "todo" | "pet" | "block" | "settings";
-const DEFAULT_TAB: TabId = "home";
-const ALLOWED: TabId[] = ["home", "todo", "pet", "block", "settings"];
 const ACTIVE_TAB_KEY = "active_tab";
 
-function getTabFromLocation(): TabId {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const q = params.get("tab") as TabId | null;
-    const hash = (window.location.hash?.replace("#", "") || null) as TabId | null;
-    if (q && ALLOWED.includes(q)) return q;
-    if (hash && ALLOWED.includes(hash)) return hash;
-  } catch {}
-  return DEFAULT_TAB;
-}
-
 const Index: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabId>(getTabFromLocation());
-
-  // đổi tab + cập nhật URL (để deep-link & back/forward)
-  const changeTab = (tab: TabId) => {
-    setActiveTab(tab);
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("tab", tab);
-      history.replaceState({}, "", url);
-    } catch {}
-  };
+  const [activeTab, setActiveTab] = useState<TabId>("home");
 
   useEffect(() => {
-    // Ưu tiên đọc yêu cầu điều hướng do HomeTab đặt sẵn
-    const stored = localStorage.getItem(ACTIVE_TAB_KEY) as TabId | null;
-    if (stored && ALLOWED.includes(stored)) {
-      changeTab(stored);
-      localStorage.removeItem(ACTIVE_TAB_KEY);
-    } else {
-      // nếu không có, đồng bộ theo URL lúc vào trang
-      changeTab(getTabFromLocation());
-    }
-
-    // Nghe sự kiện nav:tab (HomeTab dispatch khi bấm Yes)
-    const onNav = (e: Event) => {
-      const ce = e as CustomEvent<TabId>;
-      if (ce?.detail && ALLOWED.includes(ce.detail)) {
-        changeTab(ce.detail);
-      }
-    };
-
-    // Bắt thay đổi localStorage từ tab khác (phòng mở nhiều tab)
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === ACTIVE_TAB_KEY && e.newValue && ALLOWED.includes(e.newValue as TabId)) {
-        changeTab(e.newValue as TabId);
+    // 1) Điều hướng ban đầu qua localStorage nếu có
+    try {
+      const saved = localStorage.getItem(ACTIVE_TAB_KEY) as TabId | null;
+      if (saved) {
+        setActiveTab(saved);
         localStorage.removeItem(ACTIVE_TAB_KEY);
       }
+    } catch {}
+
+    // 2) Nghe custom event để chuyển tab (HomeTab sẽ dispatch)
+    const onNav = (e: Event) => {
+      const ce = e as CustomEvent<TabId>;
+      const tab = ce?.detail;
+      if (tab === "home" || tab === "todo" || tab === "pet" || tab === "block" || tab === "settings") {
+        setActiveTab(tab);
+      }
     };
 
-    // Đồng bộ khi người dùng bấm nút back/forward của trình duyệt
-    const onPopState = () => changeTab(getTabFromLocation());
+    // 3) Đồng bộ khi mở nhiều tab
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === ACTIVE_TAB_KEY && e.newValue) {
+        const tab = e.newValue as TabId;
+        setActiveTab(tab);
+        try { localStorage.removeItem(ACTIVE_TAB_KEY); } catch {}
+      }
+    };
 
     window.addEventListener("nav:tab", onNav as EventListener);
     window.addEventListener("storage", onStorage);
-    window.addEventListener("popstate", onPopState);
 
     return () => {
       window.removeEventListener("nav:tab", onNav as EventListener);
       window.removeEventListener("storage", onStorage);
-      window.removeEventListener("popstate", onPopState);
     };
   }, []);
 
@@ -97,10 +70,9 @@ const Index: React.FC = () => {
         </div>
       </main>
 
-      {/* Bottom nav cố định */}
       <BottomNavigation
         activeTab={activeTab}
-        onTabChange={(tab) => changeTab(tab as TabId)}
+        onTabChange={(tab) => setActiveTab(tab as TabId)}
       />
     </div>
   );
