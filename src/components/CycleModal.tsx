@@ -23,7 +23,7 @@ export const CycleModal: React.FC<CycleModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md mx-4">
+      <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0">
         <DialogHeader>
           <DialogTitle className="text-center">
             How many pomodoro cycles would you like to run?
