@@ -33,7 +33,10 @@ const Index: React.FC = () => {
       </main>
 
       {/* Bottom nav cố định */}
-      <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNavigation 
+          activeTab={activeTab}
+          onTabChange={(tab) => setActiveTab(tab as TabId)}
+      />
     </div>
   );
 };

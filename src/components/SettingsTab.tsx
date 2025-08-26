@@ -178,7 +178,7 @@ export const SettingsTab: React.FC = () => {
         </div>
 
         <div className="flex justify-end pt-2">
-          <Button onClick={openInsights} variant="secondary" className="mr-2">Focus Insights</Button>
+          <Button onClick={openInsights} variant="secondary" className="mr-2">View Insights</Button>
           <Button onClick={saveAll} className="min-w-[120px]">Save</Button>
         </div>
       </Card>
@@ -192,7 +192,7 @@ export const SettingsTab: React.FC = () => {
         <p className="text-sm text-muted-foreground">
           View charts of your Pomodoro hours and active days.
         </p>
-        <Button onClick={openInsights} className="w-fit">Focus Insights</Button>
+        <Button onClick={openInsights} className="w-fit">View Insights</Button>
       </Card>
 
       {/* About */}

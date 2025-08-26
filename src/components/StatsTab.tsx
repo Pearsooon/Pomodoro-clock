@@ -57,9 +57,9 @@ const StatsTab: React.FC = () => {
     <div className="p-6 pb-24 space-y-6">
       {/* Top bar */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/settings")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Settings
+          Back to Setting
         </Button>
         <h1 className="text-xl font-semibold">Focus Insights</h1>
         <div className="w-[130px]" /> {/* spacer */}
@@ -205,9 +205,6 @@ const StatsTab: React.FC = () => {
         {/* LINE */}
         {chartType === "line" && <SimpleLineChart data={data14} maxY={maxHours} />}
       </Card>
-
-      {/* bottom nav for tab switching */}
-      <BottomNavigation />
     </div>
   );
 };
