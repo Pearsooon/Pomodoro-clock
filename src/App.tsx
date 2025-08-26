@@ -23,7 +23,6 @@ const App = () => (
           <Route path="/stats" element={<StatsTab />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
-          <Route path="/settings" element={<SettingsTab />} /> 
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

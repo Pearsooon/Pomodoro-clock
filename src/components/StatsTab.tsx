@@ -57,12 +57,23 @@ const StatsTab: React.FC = () => {
     <div className="p-6 pb-24 space-y-6">
       {/* Top bar */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/settings")}>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/", { state: { tab: "settings" } })}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Setting
+          Back to Settings
         </Button>
         <h1 className="text-xl font-semibold">Focus Insights</h1>
         <div className="w-[130px]" /> {/* spacer */}
+      </div>
+
+      <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
+        <span
+          className="cursor-pointer hover:underline"
+          onClick={() => navigate("/settings")}
+        >
+          Setting
+        </span>
+        <span>›</span>
+        <span className="font-semibold">Insight</span>
       </div>
 
       {/* Summary */}

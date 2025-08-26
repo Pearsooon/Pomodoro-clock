@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Bell, BarChart3, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { BottomNavigation } from "@/components/BottomNavigation";
 
 const SETTINGS_KEY = "appSettings";
 const TODO_PREFS_KEY = "todoReminderPrefs";
@@ -154,8 +155,6 @@ export const SettingsTab: React.FC = () => {
           />
         </div>
 
-        <Separator />
-
         <Row
           label="Alert unfinished tasks before reset-time"
           desc="Warns you if there are unfinished tasks before the daily reset"
@@ -176,12 +175,16 @@ export const SettingsTab: React.FC = () => {
             className="mt-1"
           />
         </div>
-
-        <div className="flex justify-end pt-2">
-          <Button onClick={openInsights} variant="secondary" className="mr-2">View Insights</Button>
-          <Button onClick={saveAll} className="min-w-[120px]">Save</Button>
-        </div>
       </Card>
+
+      <div className="flex justify-center">
+        <Button
+          onClick={saveAll}
+          className="px-4 py-1 text-lg font-semibold"
+        >
+          Save All Settings
+        </Button>
+      </div>
 
       {/* Insights (quick access) */}
       <Card className="p-4 space-y-2">
@@ -192,7 +195,7 @@ export const SettingsTab: React.FC = () => {
         <p className="text-sm text-muted-foreground">
           View charts of your Pomodoro hours and active days.
         </p>
-        <Button onClick={openInsights} className="w-fit">View Insights</Button>
+        <Button onClick={openInsights} className="px-2.5 py-1.5 font-semibold">View Insights</Button>
       </Card>
 
       {/* About */}
