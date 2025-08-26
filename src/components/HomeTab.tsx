@@ -50,7 +50,7 @@ export const HomeTab: React.FC = () => {
     setShowStopDialog(false);
   };
 
-  // ── Listen global "pet:unlocked" event to always open modal
+  // listen global "pet:unlocked"
   useEffect(() => {
     const onPetUnlocked = (e: Event) => {
       const ce = e as CustomEvent<Pet>;
@@ -64,7 +64,7 @@ export const HomeTab: React.FC = () => {
       );
   }, []);
 
-  // ── Detect end-of-work-phase (work -> break | completed)
+  // detect end-of-work
   const prevPhase = useRef(phase);
   useEffect(() => {
     const endedWork =
@@ -72,13 +72,11 @@ export const HomeTab: React.FC = () => {
       (phase === "break" || phase === "completed");
 
     if (endedWork) {
-      // các số liệu tối thiểu để tính drop
-      const cyclesDone = currentCycle; // số cycle đã hoàn thành đến thời điểm này
-      const currentStreak = 0; // TODO: thay nếu có cơ chế streak
-      const focusMinutes = totalMinutes; // độ dài phiên work vừa xong
-      const level = 1; // TODO: level thực tế nếu có
+      const cyclesDone = currentCycle;
+      const currentStreak = 0;
+      const focusMinutes = totalMinutes;
+      const level = 1;
 
-      // Gọi đúng chữ ký (object)
       const newPets = checkForNewPetUnlocks({
         totalCycles: cyclesDone,
         currentStreak,
@@ -87,7 +85,6 @@ export const HomeTab: React.FC = () => {
       });
 
       if (newPets && newPets.length > 0) {
-        // Mở modal ngay cả khi event vì lý do nào đó không catch
         setUnlockedPet(newPets[0]);
       }
     }
@@ -140,20 +137,16 @@ export const HomeTab: React.FC = () => {
           )}
         </div>
 
+        {/* Start/Stop primary button */}
         <Button
           onClick={handleStartClick}
           className={cn(
             "w-full py-3 text-lg font-medium rounded-full transition-all duration-200 border-2",
             isRunning
-              // STOP: đỏ nền + chữ trắng
               ? "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-destructive"
-              // START: cam nền + chữ trắng (giữ như bạn đang dùng)
               : "bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#FF6D53]"
           )}
         >
-  {isRunning ? "Stop" : "Start"}
-</Button>
-
           {isRunning ? "Stop" : "Start"}
         </Button>
       </Card>
@@ -166,11 +159,16 @@ export const HomeTab: React.FC = () => {
       />
 
       {/* Stop confirm */}
-      <Dialog open={showStopDialog} onOpenChange={(open) => !open && setShowStopDialog(false)}>
+      <Dialog
+        open={showStopDialog}
+        onOpenChange={(open) => !open && setShowStopDialog(false)}
+      >
         <DialogContent className="sm:max-w-md mx-4">
           <DialogHeader>
             <DialogTitle>Stop Session?</DialogTitle>
-            <DialogDescription>If you exit, data will not be saved.</DialogDescription>
+            <DialogDescription>
+              If you exit, data will not be saved.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-6">
             <Button
@@ -180,7 +178,11 @@ export const HomeTab: React.FC = () => {
             >
               Continue
             </Button>
-            <Button variant="destructive" onClick={handleStopConfirm} className="flex-1">
+            <Button
+              variant="destructive"
+              onClick={handleStopConfirm}
+              className="flex-1"
+            >
               Stop
             </Button>
           </div>
