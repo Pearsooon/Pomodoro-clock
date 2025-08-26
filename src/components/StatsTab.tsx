@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { BottomNavigation } from "@/components/BottomNavigation";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type ChartType = "bar-vertical" | "bar-horizontal" | "line";
 
-// ----- DEMO DATA: 14 ngày (set cứng)
+// ---- DEMO DATA (14 ngày)
 const DATA_14 = [
   { date: "08-13", hours: 0.8 },
   { date: "08-14", hours: 1.2 },
@@ -23,6 +26,7 @@ const DATA_14 = [
 ];
 
 const StatsTab: React.FC = () => {
+  const navigate = useNavigate();
   const [chartType, setChartType] = useState<ChartType>("bar-vertical");
   const data14 = DATA_14;
 
@@ -45,15 +49,56 @@ const StatsTab: React.FC = () => {
     return item;
   }, [data14]);
 
-  // Scale chung cho mọi chart
-  const maxHours = Math.max(2, ...data14.map(d => d.hours)); // ít nhất 2 để cột/line không dẹt
+  // Range & scale
+  const maxHours = Math.max(2, ...data14.map((d) => d.hours));
+  const rangeText = `${data14[0].date} → ${data14[data14.length - 1].date}`;
 
   return (
-    <div className="p-6 pb-20 space-y-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-foreground mb-1">Insights</h1>
-        <p className="text-sm text-muted-foreground">Hours by day (last 14 days)</p>
+    <div className="p-6 pb-24 space-y-6">
+      {/* Top bar */}
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Settings
+        </Button>
+        <h1 className="text-xl font-semibold">Focus Insights</h1>
+        <div className="w-[130px]" /> {/* spacer */}
       </div>
+
+      {/* Summary */}
+      <Card className="p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h2 className="text-base font-semibold">Hours by Day</h2>
+            <p className="text-xs text-muted-foreground">
+              Last 14 days • {rangeText}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant={chartType === "bar-vertical" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setChartType("bar-vertical")}
+            >
+              Bar (Vertical)
+            </Button>
+            <Button
+              variant={chartType === "bar-horizontal" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setChartType("bar-horizontal")}
+            >
+              Bar (Horizontal)
+            </Button>
+            <Button
+              variant={chartType === "line" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setChartType("line")}
+            >
+              Line
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4">
@@ -70,63 +115,68 @@ const StatsTab: React.FC = () => {
           <div className="text-2xl font-bold">{activeDays14d}</div>
         </Card>
         <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Best day (14d)</div>
-          <div className="text-2xl font-bold">
-            {bestDay.date} • {bestDay.hours}h
-          </div>
+          <div className="text-xs text-muted-foreground">Best day</div>
+          <div className="text-2xl font-bold">{bestDay.date} • {bestDay.hours}h</div>
         </Card>
       </div>
 
-      {/* Filter chọn loại chart */}
-      <Card className="p-3">
-        <div className="flex gap-2">
-          <Button
-            variant={chartType === "bar-vertical" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setChartType("bar-vertical")}
-            className="flex-1"
-          >
-            Bar (Vertical)
-          </Button>
-          <Button
-            variant={chartType === "bar-horizontal" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setChartType("bar-horizontal")}
-            className="flex-1"
-          >
-            Bar (Horizontal)
-          </Button>
-          <Button
-            variant={chartType === "line" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setChartType("line")}
-            className="flex-1"
-          >
-            Line
-          </Button>
-        </div>
-      </Card>
-
-      {/* Charts – không dùng tooltip, không cần lib */}
+      {/* Chart area */}
       <Card className="p-4">
+        {/* title under card to keep consistent spacing */}
+        <h3 className="font-medium text-sm mb-2">
+          Daily focus hours (no tooltip; mobile-friendly)
+        </h3>
+
+        {/* BAR – VERTICAL */}
         {chartType === "bar-vertical" && (
-          <div className="h-64 flex items-end gap-2">
-            {data14.map((d) => {
-              const hPct = (d.hours / maxHours) * 100;
+          <div className="relative h-64">
+            {/* grid lines + y labels */}
+            {Array.from({ length: 4 }).map((_, i) => {
+              const y = (i * 100) / 4;
+              const label = ((maxHours * i) / 4).toFixed(0) + "h";
               return (
-                <div key={d.date} className="flex-1 flex flex-col items-center">
+                <div key={i}>
                   <div
-                    className="w-full rounded-t-md bg-primary"
-                    style={{ height: `${hPct}%`, transition: "height .3s" }}
-                    aria-label={`${d.date} ${d.hours} hours`}
+                    className="absolute left-10 right-2 h-px bg-border"
+                    style={{ bottom: `calc(${y}% + 16px)` }}
                   />
-                  <div className="mt-1 text-[10px] text-muted-foreground">{d.date.slice(5)}</div>
+                  <div
+                    className="absolute left-0 w-8 text-[10px] text-right text-muted-foreground"
+                    style={{ bottom: `calc(${y}% + 12px)` }}
+                  >
+                    {label}
+                  </div>
                 </div>
               );
             })}
+
+            {/* bars */}
+            <div className="absolute left-10 right-2 top-3 bottom-10 flex items-end gap-1.5">
+              {data14.map((d, idx) => {
+                const hPct = (d.hours / maxHours) * 100;
+                const showTick = idx % 2 === 0; // bớt dày
+                return (
+                  <div key={d.date} className="flex-1 h-full flex flex-col-reverse items-center">
+                    {/* x label */}
+                    <div className="text-[10px] text-muted-foreground mt-1">
+                      {showTick ? d.date.slice(5) : ""}
+                    </div>
+                    {/* column container to give percentage height a reference */}
+                    <div className="w-full h-full flex items-end">
+                      <div
+                        className="w-full bg-primary rounded-t-md"
+                        style={{ height: `${hPct}%`, transition: "height .3s" }}
+                        aria-label={`${d.date} ${d.hours} hours`}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
+        {/* BAR – HORIZONTAL */}
         {chartType === "bar-horizontal" && (
           <div className="space-y-2">
             {data14.slice().reverse().map((d) => {
@@ -152,14 +202,12 @@ const StatsTab: React.FC = () => {
           </div>
         )}
 
-        {chartType === "line" && (
-          <SimpleLineChart data={data14} maxY={maxHours} />
-        )}
-
-        <p className="text-xs text-muted-foreground text-center mt-3">
-          No tooltip (mobile friendly). Switch chart type above.
-        </p>
+        {/* LINE */}
+        {chartType === "line" && <SimpleLineChart data={data14} maxY={maxHours} />}
       </Card>
+
+      {/* bottom nav for tab switching */}
+      <BottomNavigation />
     </div>
   );
 };
@@ -167,11 +215,17 @@ const StatsTab: React.FC = () => {
 export default StatsTab;
 export { StatsTab };
 
-/** SVG line chart siêu gọn, không tooltip */
-function SimpleLineChart({ data, maxY }: { data: { date: string; hours: number }[]; maxY: number }) {
-  const W = 640; // nội bộ, sẽ scale theo container ngoài
+/** SVG line chart (no tooltip) */
+function SimpleLineChart({
+  data,
+  maxY,
+}: {
+  data: { date: string; hours: number }[];
+  maxY: number;
+}) {
+  const W = 640;
   const H = 240;
-  const P = 24; // padding
+  const P = 24;
   const innerW = W - P * 2;
   const innerH = H - P * 2;
 
@@ -180,19 +234,25 @@ function SimpleLineChart({ data, maxY }: { data: { date: string; hours: number }
     const y = P + innerH - (d.hours / maxY) * innerH;
     return [x, y] as const;
   });
-
   const path = points.map(([x, y]) => `${x},${y}`).join(" ");
 
   return (
     <div className="h-64">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
-        {/* grid ngang */}
+        {/* grid */}
         {Array.from({ length: 4 }).map((_, i) => {
           const y = P + (i * innerH) / 4;
-          return <line key={i} x1={P} y1={y} x2={W - P} y2={y} stroke="hsl(var(--border))" strokeDasharray="3 3" />;
+          const label = ((maxY * i) / 4).toFixed(0) + "h";
+          return (
+            <g key={i}>
+              <line x1={P} y1={y} x2={W - P} y2={y} stroke="hsl(var(--border))" strokeDasharray="3 3" />
+              <text x={P - 8} y={y + 3} textAnchor="end" fontSize="10" fill="hsl(var(--muted-foreground))">
+                {label}
+              </text>
+            </g>
+          );
         })}
-
-        {/* trục X nhãn ngày */}
+        {/* x labels */}
         {data.map((d, i) => {
           const x = P + (i * innerW) / (data.length - 1 || 1);
           return (
@@ -201,16 +261,8 @@ function SimpleLineChart({ data, maxY }: { data: { date: string; hours: number }
             </text>
           );
         })}
-
-        {/* polyline */}
-        <polyline
-          fill="none"
-          stroke="hsl(var(--primary))"
-          strokeWidth="2"
-          points={path}
-        />
-
-        {/* dots */}
+        {/* line + dots */}
+        <polyline fill="none" stroke="hsl(var(--primary))" strokeWidth="2" points={path} />
         {points.map(([x, y], idx) => (
           <circle key={idx} cx={x} cy={y} r="3" fill="hsl(var(--primary))" />
         ))}
