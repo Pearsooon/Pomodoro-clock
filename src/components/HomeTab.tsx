@@ -43,26 +43,47 @@ export const HomeTab: React.FC = () => {
 
   // ===== Detect end-of-work-phase (work -> break or work -> completed)
   const prevPhase = useRef(phase);
+  // 1) Luôn nghe event mở khóa pet
   useEffect(() => {
-    const endedWork = prevPhase.current === 'work' && (phase === 'break' || phase === 'completed');
+    const onPetUnlocked = (e: Event) => {
+      const ce = e as CustomEvent<Pet>;
+      if (ce?.detail) setUnlockedPet(ce.detail);
+    };
+    window.addEventListener('pet:unlocked', onPetUnlocked as EventListener);
+    return () => window.removeEventListener('pet:unlocked', onPetUnlocked as EventListener);
+  }, []);
+  
+  // 2) Phát hiện kết thúc phiên work và check drop
+  const prevPhase = useRef(phase);
+  useEffect(() => {
+    const endedWork =
+      prevPhase.current === 'work' && (phase === 'break' || phase === 'completed');
+  
     if (endedWork) {
-      // Các số liệu tối thiểu để tính drop:
-      const cyclesDone = currentCycle;        // số cycle đã hoàn thành tới thời điểm này
-      const currentStreak = 0;                // nếu có cơ chế streak -> thay số thực
-      const focusMinutes = totalMinutes;      // độ dài phiên work vừa xong
-      const level = 1;                        // nếu có EXP/level -> thay số thực
-
-      console.log('[PET] end-of-work detected', { phase, cyclesDone, focusMinutes });
-
-      const newPets = checkForNewPetUnlocks(cyclesDone, currentStreak, focusMinutes, level);
+      const cyclesDone = currentCycle;     // số cycle đã hoàn thành đến lúc này
+      const currentStreak = 0;             // TODO: thay bằng giá trị thực nếu có
+      const focusMinutes = totalMinutes;   // độ dài phiên work vừa xong
+      const level = 1;                     // TODO: level thực
+  
+      console.log('[PET] end-of-work detected', {
+        prev: prevPhase.current, phase, cyclesDone, focusMinutes
+      });
+  
+      const newPets = checkForNewPetUnlocks({
+        totalCycles: cyclesDone,
+        currentStreak,
+        totalFocusMinutes: focusMinutes,
+        level
+      });
+  
       console.log('[PET] checkForNewPetUnlocks ->', newPets);
-
       if (newPets && newPets.length > 0) {
-        setUnlockedPet(newPets[0]);           // hiển thị pet đầu tiên mở khóa
+        setUnlockedPet(newPets[0]);        // mở modal ngay cả khi event fail
       }
     }
     prevPhase.current = phase;
   }, [phase, currentCycle, totalMinutes, checkForNewPetUnlocks]);
+
 
   const formatTime = (m: number, s: number) =>
     `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
