@@ -146,8 +146,8 @@ export const HomeTab: React.FC = () => {
           className={cn(
             "w-full py-3 text-lg font-medium rounded-full transition-all duration-200",
             isRunning
-              ? "border-2 border-destructive text-destructive bg-transparent hover:bg-destructive hover:text-destructive-foreground"
-              : "border-2 border-success text-success bg-transparent hover:bg-success hover:text-success-foreground"
+            ? "border-2 border-destructive text-destructive bg-transparent hover:bg-destructive hover:text-destructive-foreground"
+            : "border-2 border-[#FF6D53] bg-[#FF6D53] text-white hover:bg-transparent hover:text-[#FF6D53]"
           )}
         >
           {isRunning ? "Stop" : "Start"}

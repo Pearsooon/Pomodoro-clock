@@ -174,14 +174,14 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
           fill="none"
         />
 
-        {/* Vệt xanh (selection) */}
+        {/* Vệt (selection) */}
         {!isRunning && (
           <g transform={`rotate(-90 ${center} ${center})`}>
             <circle
               cx={center}
               cy={center}
               r={radius}
-              stroke="hsl(var(--success))"
+              stroke="#FF6D53"
               strokeWidth={strokeWidth}
               fill="none"
               strokeDasharray={`${selectedLen} ${circumference}`}
