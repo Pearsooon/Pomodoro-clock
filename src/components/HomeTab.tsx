@@ -20,6 +20,21 @@ import { useNavigate } from "react-router-dom";
 
 const EVENT_PET_UNLOCKED = "pet:unlocked";
 
+const [showBlockPrompt, setShowBlockPrompt] = useState(false);
+const BLOCKED_APPS_KEY = "blocked_apps_v1"; // đổi theo key bạn đang lưu
+
+// --- hàm kiểm tra đã block app nào chưa
+const hasAnyBlocked = useCallback(() => {
+  try {
+    const raw = localStorage.getItem(BLOCKED_APPS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) && arr.length > 0;
+  } catch {
+    return false;
+  }
+}, []);
+
+
 // --- helper: kiểm tra có app nào đã bị block chưa (đọc vài key phổ biến)
 function hasAnyBlockedApps(): boolean {
   const KEYS = [
@@ -78,11 +93,20 @@ export const HomeTab: React.FC = () => {
 
   const focusBuddy = useMemo(() => PETS.find((p) => p.id === "focus-buddy") || null, []);
 
+  // --- điều hướng sang tab Block (vì BlockTab là component trong Index)
   const goToBlockTab = useCallback(() => {
-  try { localStorage.setItem("active_tab", "block"); } catch {}
-  // một số layout đọc tab từ query, số khác từ hash -> set cả 2 cho chắc
-  window.location.href = "/?tab=block#block";
-}, []);
+    try {
+      // cho Index biết tab muốn mở
+      localStorage.setItem("active_tab", "block");
+    } catch {}
+    // bắn event cho Index nếu nó đang mở
+    try {
+      window.dispatchEvent(new CustomEvent("nav:tab", { detail: "block" }));
+    } catch {}
+    // fallback nếu Index đọc từ URL
+    window.location.href = "/?tab=block#block";
+  }, []);
+
 
   const handleStartClick = () => {
     if (isRunning) {
