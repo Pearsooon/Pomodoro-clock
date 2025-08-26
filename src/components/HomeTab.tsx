@@ -1,208 +1,423 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Search, Shield } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { CircularTimer } from "@/components/CircularTimer";
+import { CycleModal } from "@/components/CycleModal";
+import { PetUnlockModal } from "@/components/PetUnlockModal";
+import { usePomodoro } from "@/hooks/usePomodoro";
+import { usePetCollection } from "@/hooks/usePetCollection";
+import { cn } from "@/lib/utils";
+import type { Pet } from "@/types/pet";
+import { PETS } from "@/data/pets";
 
-interface App {
-  id: string;
-  name: string;
-  packageName: string;
-  icon: string;
-  blocked: boolean;
-}
+const EVENT_PET_UNLOCKED = "pet:unlocked";
 
-const STORAGE_KEY_ARRAY = 'block_apps_v1';     // HomeTab có quét key này (mảng thuần)
-const STORAGE_KEY_OBJECT = 'blockedApps';      // …và key này dạng object { apps: [...] }
-const PERM_KEY = 'block_permissions_granted';  // mô phỏng quyền đã cấp
+/** Kiểm tra đã block app nào chưa (quét rộng localStorage) */
+function hasAnyBlockedApps(): boolean {
+  try {
+    const preferred = [
+      "block_apps_v1",
+      "blockedApps",
+      "blocklist_v1",
+      "blocklist",
+      "focus_block_apps",
+      "blockSettings",
+      "notificationBlocks",
+      "blocked_notifications",
+    ];
+    const fields = ["apps", "blocked", "list", "items", "bundleIds", "services"];
 
-export const BlockTab: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [apps, setApps] = useState<App[]>([
-    { id: '1', name: 'Instagram', packageName: 'com.instagram.android', icon: '📷', blocked: false },
-    { id: '2', name: 'TikTok', packageName: 'com.tiktok', icon: '🎵', blocked: false },
-    { id: '3', name: 'Twitter', packageName: 'com.twitter.android', icon: '🐦', blocked: false },
-    { id: '4', name: 'YouTube', packageName: 'com.google.android.youtube', icon: '📺', blocked: false },
-    { id: '5', name: 'Facebook', packageName: 'com.facebook.katana', icon: '👥', blocked: false },
-    { id: '6', name: 'WhatsApp', packageName: 'com.whatsapp', icon: '💬', blocked: false },
-    { id: '7', name: 'Snapchat', packageName: 'com.snapchat.android', icon: '👻', blocked: false },
-    { id: '8', name: 'Reddit', packageName: 'com.reddit.frontpage', icon: '🤖', blocked: false },
-  ]);
-
-  const [hasPermissions, setHasPermissions] = useState(false);
-
-  // ⬇️ Load quyền & danh sách block đã lưu (nếu có) khi mở tab
-  useEffect(() => {
-    try {
-      const perm = localStorage.getItem(PERM_KEY);
-      if (perm === '1') setHasPermissions(true);
-    } catch {}
-
-    try {
-      // ưu tiên đọc object { apps: [...] }
-      const rawObj = localStorage.getItem(STORAGE_KEY_OBJECT);
-      let blockedPkg: string[] | null = null;
-      if (rawObj) {
-        const obj = JSON.parse(rawObj);
-        if (obj && Array.isArray(obj.apps)) blockedPkg = obj.apps as string[];
-      }
-      // fallback: đọc mảng thuần
-      if (!blockedPkg) {
-        const rawArr = localStorage.getItem(STORAGE_KEY_ARRAY);
-        if (rawArr) {
-          const arr = JSON.parse(rawArr);
-          if (Array.isArray(arr)) blockedPkg = arr as string[];
+    // 1) Thử các key phổ biến trước
+    for (const k of preferred) {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const val = JSON.parse(raw);
+      if (Array.isArray(val) && val.length > 0) return true;
+      if (val && typeof val === "object") {
+        for (const f of fields) {
+          const arr = (val as any)[f];
+          if (Array.isArray(arr) && arr.length > 0) return true;
         }
       }
-      if (blockedPkg && blockedPkg.length > 0) {
-        setApps(prev =>
-          prev.map(a => ({ ...a, blocked: blockedPkg!.includes(a.packageName) }))
-        );
+    }
+
+    // 2) Quét toàn bộ localStorage: key có 'block' hoặc 'notif'
+    const re = /(block|notif|noti|mute|silenc)/i;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) ?? "";
+      if (!re.test(key)) continue;
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      let val: any;
+      try {
+        val = JSON.parse(raw);
+      } catch {
+        // nếu là chuỗi thuần nhưng có nội dung -> coi như có
+        if (raw.trim().length > 0) return true;
+        continue;
       }
-    } catch {}
-  }, []);
 
-  // ⬇️ Mỗi khi danh sách apps thay đổi, lưu các app đang blocked vào localStorage (2 định dạng)
-  useEffect(() => {
-    const blocked = apps.filter(a => a.blocked).map(a => a.packageName);
-    try {
-      localStorage.setItem(STORAGE_KEY_ARRAY, JSON.stringify(blocked));                // mảng thuần
-      localStorage.setItem(STORAGE_KEY_OBJECT, JSON.stringify({ apps: blocked }));    // object { apps: [...] }
-      // Không cần trigger window 'storage' (sự kiện thật chỉ bắn giữa các tab),
-      // HomeTab sẽ đọc trực tiếp mỗi lần bấm Start.
-    } catch {}
-  }, [apps]);
+      if (Array.isArray(val) && val.length > 0) return true;
+      if (val && typeof val === "object") {
+        for (const f of fields) {
+          const arr = val[f];
+          if (Array.isArray(arr) && arr.length > 0) return true;
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
 
-  const filteredApps = useMemo(
-    () => apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase())),
-    [apps, searchQuery]
+export const HomeTab: React.FC = () => {
+  const [showCycleModal, setShowCycleModal] = useState(false);
+  const [showStopDialog, setShowStopDialog] = useState(false);
+
+  // Gợi ý block khi nhấn Start mà chưa block app nào
+  const [showBlockPrompt, setShowBlockPrompt] = useState(false);
+
+  // Modal đang hiển thị 1 pet
+  const [unlockedPet, setUnlockedPet] = useState<Pet | null>(null);
+  // Hàng chờ pet mở khóa (không bật modal nếu đang break)
+  const [pendingUnlockedPets, setPendingUnlockedPets] = useState<Pet[]>([]);
+
+  // Popup chào mừng đầu vào
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
+    usePetCollection();
+
+  const {
+    minutes,
+    seconds,
+    totalMinutes,
+    isRunning,
+    isBreakMode,
+    currentCycle,
+    totalCycles,
+    phase, // 'idle' | 'work' | 'break' | 'completed'
+    startTimer,
+    stopTimer,
+    setWorkMinutes,
+  } = usePomodoro();
+
+  const focusBuddy = useMemo(
+    () => PETS.find((p) => p.id === "focus-buddy") || null,
+    []
   );
 
-  const blockedApps = useMemo(() => apps.filter(app => app.blocked), [apps]);
-
-  const toggleAppBlock = (id: string) => {
-    setApps(prev => prev.map(app => (app.id === id ? { ...app, blocked: !app.blocked } : app)));
+  const handleStartClick = () => {
+    if (isRunning) {
+      setShowStopDialog(true);
+      return;
+    }
+    // Chưa chạy -> kiểm tra block list
+    if (!hasAnyBlockedApps()) {
+      setShowBlockPrompt(true);
+      return;
+    }
+    // Đã có app bị block -> mở chọn cycle như cũ
+    setShowCycleModal(true);
   };
 
-  const requestPermissions = () => {
-    setHasPermissions(true);
-    try { localStorage.setItem(PERM_KEY, '1'); } catch {}
+  const handleStopConfirm = () => {
+    stopTimer();
+    setShowStopDialog(false);
   };
 
-  if (!hasPermissions) {
-    return (
-      <div className="p-6 pb-20 space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-2">App Blocking</h1>
-          <p className="text-muted-foreground">Block distracting apps during focus sessions</p>
-        </div>
+  // 🔄 Tự đóng prompt nếu blocklist thay đổi ở tab khác
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key) return;
+      if (/(block|notif|noti|mute|silenc)/i.test(e.key)) {
+        if (hasAnyBlockedApps()) setShowBlockPrompt(false);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
-        <Card className="p-6 text-center space-y-4">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-            <Shield className="w-8 h-8 text-primary" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Permissions Required</h3>
-            <p className="text-muted-foreground mb-4">
-              To block apps during focus sessions, we need special permissions.
-            </p>
-          </div>
+  // Lắng nghe sự kiện mở khóa pet → CHỈ thêm vào queue
+  useEffect(() => {
+    const onPetUnlocked = (e: Event) => {
+      const ce = e as CustomEvent<Pet>;
+      if (ce?.detail) setPendingUnlockedPets((prev) => [...prev, ce.detail]);
+    };
+    window.addEventListener(EVENT_PET_UNLOCKED, onPetUnlocked as EventListener);
+    return () =>
+      window.removeEventListener(
+        EVENT_PET_UNLOCKED,
+        onPetUnlocked as EventListener
+      );
+  }, []);
 
-          <div className="space-y-3 text-left">
-            <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-              <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-              <div>
-                <div className="font-medium text-sm">Notification Listener Access</div>
-                <div className="text-xs text-muted-foreground">To silence app notifications</div>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
-              <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
-              <div>
-                <div className="font-medium text-sm">Do Not Disturb Access</div>
-                <div className="text-xs text-muted-foreground">To manage focus mode settings</div>
-              </div>
-            </div>
-          </div>
+  // Hiện popup chào mừng khi lần đầu vào trang
+  useEffect(() => {
+    const SEEN_KEY = "welcome_seen_v1";
+    const seen =
+      typeof window !== "undefined" ? localStorage.getItem(SEEN_KEY) : "1";
+    if (!seen) {
+      setShowWelcome(true);
+      localStorage.setItem(SEEN_KEY, "1");
+    }
+  }, []);
 
-          <Button onClick={requestPermissions} className="w-full mt-6">
-            Grant Permissions
-          </Button>
-        </Card>
-      </div>
-    );
-  }
+  // Nút Let's go
+  const letsGo = () => {
+    setAsCompanion("focus-buddy");
+    setShowWelcome(false);
+  };
+
+  // Phát hiện chuyển pha
+  const prevPhase = useRef(phase);
+  useEffect(() => {
+    const endedWork =
+      prevPhase.current === "work" &&
+      (phase === "break" || phase === "completed");
+
+    if (endedWork) {
+      const cyclesDone = currentCycle;
+      const currentStreak = 0;
+      const focusMinutes = totalMinutes;
+      const level = 1;
+
+      checkForNewPetUnlocks({
+        totalCycles: cyclesDone,
+        currentStreak,
+        totalFocusMinutes: focusMinutes,
+        level,
+      });
+    }
+
+    // Cộng XP khi hoàn tất toàn bộ buổi học
+    if (prevPhase.current === "work" && phase === "completed") {
+      const xp = awardSessionXP(totalMinutes, totalCycles);
+      console.log(
+        `[XP] +${xp} XP to companion for session: ${totalMinutes}m × ${totalCycles} cycles`
+      );
+    }
+
+    prevPhase.current = phase;
+  }, [
+    phase,
+    currentCycle,
+    totalMinutes,
+    totalCycles,
+    checkForNewPetUnlocks,
+    awardSessionXP,
+  ]);
+
+  // Khi KHÔNG ở break → nếu có queue & chưa mở modal → bật modal
+  useEffect(() => {
+    if (phase !== "break" && !unlockedPet && pendingUnlockedPets.length > 0) {
+      setUnlockedPet(pendingUnlockedPets[0]);
+      setPendingUnlockedPets((prev) => prev.slice(1));
+    }
+  }, [phase, unlockedPet, pendingUnlockedPets]);
+
+  // Đóng modal pet unlock
+  const handleCloseUnlockedModal = () => {
+    if (phase !== "break" && pendingUnlockedPets.length > 0) {
+      setUnlockedPet(pendingUnlockedPets[0]);
+      setPendingUnlockedPets((prev) => prev.slice(1));
+    } else {
+      setUnlockedPet(null);
+    }
+  };
+
+  const formatTime = useMemo(
+    () => (m: number, s: number) =>
+      `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`,
+    []
+  );
 
   return (
-    <div className="p-6 pb-20 space-y-6">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-foreground mb-2">App Blocking</h1>
-        <p className="text-muted-foreground">Choose apps to block during focus sessions</p>
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-6 space-y-8">
+      <Card
+        className={cn(
+          "p-8 w-full max-w-sm transition-all duration-500 shadow-lg",
+          isBreakMode ? "bg-break border-break-foreground/20" : "bg-card"
+        )}
+      >
+        {isRunning && (
+          <div className="text-center mb-4">
+            <span className="text-sm font-medium text-muted-foreground">
+              {isBreakMode
+                ? "Break Time"
+                : `Cycle ${currentCycle}/${totalCycles}`}
+            </span>
+          </div>
+        )}
 
-      {blockedApps.length > 0 && (
-        <Alert>
-          <Shield className="h-4 w-4" />
-          <AlertDescription>
-            {blockedApps.length} apps will be blocked during focus sessions
-          </AlertDescription>
-        </Alert>
-      )}
+        <div className="flex justify-center mb-6">
+          <CircularTimer
+            minutes={minutes}
+            seconds={seconds}
+            totalMinutes={totalMinutes}
+            isRunning={isRunning}
+            isBreakMode={isBreakMode}
+            onMinutesChange={setWorkMinutes}
+            petImage={currentCompanion?.image}
+            sleepImage={currentCompanion?.sleepImage}
+          />
+        </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-        <Input
-          placeholder="Search apps..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+        <div className="text-center mb-6">
+          <div className="text-4xl font-bold text-foreground mb-2">
+            {formatTime(minutes, seconds)}
+          </div>
+        </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4 text-center">
-          <div className="text-2xl font-bold text-primary">{blockedApps.length}</div>
-          <div className="text-sm text-muted-foreground">Blocked Apps</div>
-        </Card>
-        <Card className="p-4 text-center">
-          <div className="text-2xl font-bold text-foreground">{apps.length - blockedApps.length}</div>
-          <div className="text-sm text-muted-foreground">Allowed Apps</div>
-        </Card>
-      </div>
+        {/* Start/Stop button: Start = cam; Stop = nền đỏ chữ trắng */}
+        <Button
+          onClick={handleStartClick}
+          className={cn(
+            "w-full py-3 text-lg font-medium rounded-full transition-all duration-200 border-2",
+            isRunning
+              ? "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-destructive"
+              : "bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#FF6D53]"
+          )}
+        >
+          {isRunning ? "Stop" : "Start"}
+        </Button>
+      </Card>
 
-      <div className="space-y-3">
-        {filteredApps.map((app) => (
-          <Card key={app.id} className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="text-2xl">{app.icon}</div>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-foreground">{app.name}</div>
-                <div className="text-sm text-muted-foreground truncate">{app.packageName}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                {app.blocked && (
-                  <Badge variant="secondary" className="text-xs">
-                    Blocked
-                  </Badge>
-                )}
-                <Checkbox
-                  checked={app.blocked}
-                  onCheckedChange={() => toggleAppBlock(app.id)}
-                />
+      {/* Cycle selection */}
+      <CycleModal
+        isOpen={showCycleModal}
+        onClose={() => setShowCycleModal(false)}
+        onStart={(cycles) => startTimer(cycles, totalMinutes)}
+      />
+
+      {/* Stop confirm */}
+      <Dialog
+        open={showStopDialog}
+        onOpenChange={(open) => !open && setShowStopDialog(false)}
+      >
+        <DialogContent className="sm:max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle>Stop Session?</DialogTitle>
+            <DialogDescription>
+              If you exit, data will not be saved.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setShowStopDialog(false)}
+              className="flex-1"
+            >
+              Continue
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleStopConfirm}
+              className="flex-1"
+            >
+              Stop
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Prompt nhắc block notifications — YES bên trái (cam), NO bên phải (đỏ) */}
+      <Dialog open={showBlockPrompt} onOpenChange={setShowBlockPrompt}>
+        <DialogContent className="sm:max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle>
+              No blocked apps detected!
+            </DialogTitle>
+            <DialogDescription>
+              Do you want to block notifications before starting your session?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex gap-3 mt-6">
+            {/* YES -> chuyển qua tab Block */}
+            <Button
+              className="flex-1 bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90"
+              onClick={() => {
+                try { localStorage.setItem("active_tab", "block"); } catch {}
+                try {
+                  window.dispatchEvent(
+                    new CustomEvent("nav:tab", { detail: "block" as const })
+                  );
+                } catch {}
+                setShowBlockPrompt(false);
+              }}
+            >
+              Yes
+            </Button>
+
+            {/* NO -> tiếp tục chọn cycle */}
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={() => {
+                setShowBlockPrompt(false);
+                setShowCycleModal(true);
+              }}
+            >
+              No
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Welcome dialog khi mới vào trang (1 nút, ẩn dấu ✕) */}
+      <Dialog
+        open={showWelcome}
+        onOpenChange={(open) => !open && setShowWelcome(false)}
+      >
+        <DialogContent className="sm:max-w-md mx-4 [&_[aria-label='Close']]:hidden">
+          <DialogHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full animate-ping bg-blue-300/60" />
+                <div className="relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background border-blue-400">
+                  <img
+                    src={focusBuddy?.image || currentCompanion?.image}
+                    alt="Focus Buddy"
+                    className="w-12 h-12 object-contain"
+                  />
+                </div>
               </div>
             </div>
-          </Card>
-        ))}
-      </div>
+            <DialogTitle className="text-xl">
+              Meet Focus Buddy! Your first Pomodoro pet.
+            </DialogTitle>
+          </DialogHeader>
 
-      {filteredApps.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          No apps found matching "{searchQuery}"
-        </div>
-      )}
+          <div className="text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Start focusing with Focus Buddy and earn more pets!
+            </p>
+            <Button onClick={letsGo} className="w-full">
+              Let&apos;s go
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pet unlock modal (sau break mới hiện) */}
+      <PetUnlockModal
+        pet={unlockedPet}
+        isOpen={!!unlockedPet}
+        onClose={handleCloseUnlockedModal}
+        onSetAsCompanion={setAsCompanion}
+        isUnlocked={true}
+      />
     </div>
   );
 };

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Search, Smartphone, Shield, AlertCircle } from 'lucide-react';
+import { Search, Shield } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface App {
@@ -14,6 +14,10 @@ interface App {
   icon: string;
   blocked: boolean;
 }
+
+const STORAGE_KEY_ARRAY = 'block_apps_v1';     // HomeTab có quét key này (mảng thuần)
+const STORAGE_KEY_OBJECT = 'blockedApps';      // …và key này dạng object { apps: [...] }
+const PERM_KEY = 'block_permissions_granted';  // mô phỏng quyền đã cấp
 
 export const BlockTab: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,21 +34,62 @@ export const BlockTab: React.FC = () => {
 
   const [hasPermissions, setHasPermissions] = useState(false);
 
-  const filteredApps = apps.filter(app =>
-    app.name.toLowerCase().includes(searchQuery.toLowerCase())
+  // ⬇️ Load quyền & danh sách block đã lưu (nếu có) khi mở tab
+  useEffect(() => {
+    try {
+      const perm = localStorage.getItem(PERM_KEY);
+      if (perm === '1') setHasPermissions(true);
+    } catch {}
+
+    try {
+      // ưu tiên đọc object { apps: [...] }
+      const rawObj = localStorage.getItem(STORAGE_KEY_OBJECT);
+      let blockedPkg: string[] | null = null;
+      if (rawObj) {
+        const obj = JSON.parse(rawObj);
+        if (obj && Array.isArray(obj.apps)) blockedPkg = obj.apps as string[];
+      }
+      // fallback: đọc mảng thuần
+      if (!blockedPkg) {
+        const rawArr = localStorage.getItem(STORAGE_KEY_ARRAY);
+        if (rawArr) {
+          const arr = JSON.parse(rawArr);
+          if (Array.isArray(arr)) blockedPkg = arr as string[];
+        }
+      }
+      if (blockedPkg && blockedPkg.length > 0) {
+        setApps(prev =>
+          prev.map(a => ({ ...a, blocked: blockedPkg!.includes(a.packageName) }))
+        );
+      }
+    } catch {}
+  }, []);
+
+  // ⬇️ Mỗi khi danh sách apps thay đổi, lưu các app đang blocked vào localStorage (2 định dạng)
+  useEffect(() => {
+    const blocked = apps.filter(a => a.blocked).map(a => a.packageName);
+    try {
+      localStorage.setItem(STORAGE_KEY_ARRAY, JSON.stringify(blocked));                // mảng thuần
+      localStorage.setItem(STORAGE_KEY_OBJECT, JSON.stringify({ apps: blocked }));    // object { apps: [...] }
+      // Không cần trigger window 'storage' (sự kiện thật chỉ bắn giữa các tab),
+      // HomeTab sẽ đọc trực tiếp mỗi lần bấm Start.
+    } catch {}
+  }, [apps]);
+
+  const filteredApps = useMemo(
+    () => apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase())),
+    [apps, searchQuery]
   );
 
-  const blockedApps = apps.filter(app => app.blocked);
+  const blockedApps = useMemo(() => apps.filter(app => app.blocked), [apps]);
 
   const toggleAppBlock = (id: string) => {
-    setApps(prev => prev.map(app =>
-      app.id === id ? { ...app, blocked: !app.blocked } : app
-    ));
+    setApps(prev => prev.map(app => (app.id === id ? { ...app, blocked: !app.blocked } : app)));
   };
 
   const requestPermissions = () => {
-    // In a real app, this would open device settings
     setHasPermissions(true);
+    try { localStorage.setItem(PERM_KEY, '1'); } catch {}
   };
 
   if (!hasPermissions) {
@@ -65,7 +110,7 @@ export const BlockTab: React.FC = () => {
               To block apps during focus sessions, we need special permissions.
             </p>
           </div>
-          
+
           <div className="space-y-3 text-left">
             <div className="flex items-start gap-3 p-3 bg-muted rounded-lg">
               <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
@@ -93,13 +138,11 @@ export const BlockTab: React.FC = () => {
 
   return (
     <div className="p-6 pb-20 space-y-6">
-      {/* Header */}
       <div className="text-center">
         <h1 className="text-2xl font-bold text-foreground mb-2">App Blocking</h1>
         <p className="text-muted-foreground">Choose apps to block during focus sessions</p>
       </div>
 
-      {/* Status */}
       {blockedApps.length > 0 && (
         <Alert>
           <Shield className="h-4 w-4" />
@@ -109,9 +152,8 @@ export const BlockTab: React.FC = () => {
         </Alert>
       )}
 
-      {/* Search */}
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
         <Input
           placeholder="Search apps..."
           value={searchQuery}
@@ -120,7 +162,6 @@ export const BlockTab: React.FC = () => {
         />
       </div>
 
-      {/* Quick stats */}
       <div className="grid grid-cols-2 gap-4">
         <Card className="p-4 text-center">
           <div className="text-2xl font-bold text-primary">{blockedApps.length}</div>
@@ -132,7 +173,6 @@ export const BlockTab: React.FC = () => {
         </Card>
       </div>
 
-      {/* Apps list */}
       <div className="space-y-3">
         {filteredApps.map((app) => (
           <Card key={app.id} className="p-4">
