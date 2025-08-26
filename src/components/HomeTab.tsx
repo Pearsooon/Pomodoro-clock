@@ -21,7 +21,11 @@ const EVENT_PET_UNLOCKED = "pet:unlocked";
 export const HomeTab: React.FC = () => {
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
+
+  // Modal đang hiển thị 1 pet
   const [unlockedPet, setUnlockedPet] = useState<Pet | null>(null);
+  // ✅ Hàng chờ pet mở khóa (không bật modal nếu đang break)
+  const [pendingUnlockedPets, setPendingUnlockedPets] = useState<Pet[]>([]);
 
   const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
     usePetCollection();
@@ -50,11 +54,13 @@ export const HomeTab: React.FC = () => {
     setShowStopDialog(false);
   };
 
-  // Listen global unlock event
+  // ⛳ Lắng nghe sự kiện mở khóa pet → CHỈ thêm vào queue (không mở modal ngay)
   useEffect(() => {
     const onPetUnlocked = (e: Event) => {
       const ce = e as CustomEvent<Pet>;
-      if (ce?.detail) setUnlockedPet(ce.detail);
+      if (ce?.detail) {
+        setPendingUnlockedPets((prev) => [...prev, ce.detail]);
+      }
     };
     window.addEventListener(EVENT_PET_UNLOCKED, onPetUnlocked as EventListener);
     return () =>
@@ -64,7 +70,7 @@ export const HomeTab: React.FC = () => {
       );
   }, []);
 
-  // Detect transitions
+  // Phát hiện chuyển pha
   const prevPhase = useRef(phase);
   useEffect(() => {
     const endedWork =
@@ -72,31 +78,57 @@ export const HomeTab: React.FC = () => {
       (phase === "break" || phase === "completed");
 
     if (endedWork) {
+      // ✅ Gọi logic rơi pet nhưng KHÔNG mở modal tại đây
+      //   (pet sẽ được đưa vào queue qua event ở trên)
       const cyclesDone = currentCycle;
       const currentStreak = 0;
       const focusMinutes = totalMinutes;
       const level = 1;
 
-      const newPets = checkForNewPetUnlocks({
+      checkForNewPetUnlocks({
         totalCycles: cyclesDone,
         currentStreak,
         totalFocusMinutes: focusMinutes,
         level,
       });
-      if (newPets && newPets.length > 0) {
-        setUnlockedPet(newPets[0]);
-      }
     }
 
-    // ✅ Chỉ khi kết thúc toàn bộ session (completed) mới cộng XP:
-    // XP = minutesPerWork × totalCycles đã chọn lúc bắt đầu
+    // ✅ Cộng XP khi hoàn tất toàn bộ buổi học
     if (prevPhase.current === "work" && phase === "completed") {
       const xp = awardSessionXP(totalMinutes, totalCycles);
-      console.log(`[XP] +${xp} XP to companion for session: ${totalMinutes}m × ${totalCycles} cycles`);
+      console.log(
+        `[XP] +${xp} XP to companion for session: ${totalMinutes}m × ${totalCycles} cycles`
+      );
     }
 
     prevPhase.current = phase;
-  }, [phase, currentCycle, totalMinutes, totalCycles, checkForNewPetUnlocks, awardSessionXP]);
+  }, [
+    phase,
+    currentCycle,
+    totalMinutes,
+    totalCycles,
+    checkForNewPetUnlocks,
+    awardSessionXP,
+  ]);
+
+  // ✅ Khi KHÔNG ở break (tức break vừa xong hoặc đã completed) → nếu có queue & chưa mở modal → bật modal
+  useEffect(() => {
+    const notInBreak = phase !== "break";
+    if (notInBreak && !unlockedPet && pendingUnlockedPets.length > 0) {
+      setUnlockedPet(pendingUnlockedPets[0]);
+      setPendingUnlockedPets((prev) => prev.slice(1));
+    }
+  }, [phase, unlockedPet, pendingUnlockedPets]);
+
+  // Đóng modal: nếu còn queue & không ở break → mở tiếp; ngược lại đóng hẳn
+  const handleCloseUnlockedModal = () => {
+    if (phase !== "break" && pendingUnlockedPets.length > 0) {
+      setUnlockedPet(pendingUnlockedPets[0]);
+      setPendingUnlockedPets((prev) => prev.slice(1));
+    } else {
+      setUnlockedPet(null);
+    }
+  };
 
   const formatTime = useMemo(
     () => (m: number, s: number) =>
@@ -137,11 +169,6 @@ export const HomeTab: React.FC = () => {
           <div className="text-4xl font-bold text-foreground mb-2">
             {formatTime(minutes, seconds)}
           </div>
-          {isBreakMode && (
-            <div className="text-break-foreground font-medium">
-              Break – {formatTime(minutes, seconds)}
-            </div>
-          )}
         </div>
 
         {/* Start/Stop button: Start = cam; Stop = nền đỏ chữ trắng */}
@@ -177,22 +204,6 @@ export const HomeTab: React.FC = () => {
               If you exit, data will not be saved.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setShowStopDialog(false)}
-              className="flex-1"
-            >
-              Continue
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleStopConfirm}
-              className="flex-1"
-            >
-              Stop
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
 
@@ -200,7 +211,7 @@ export const HomeTab: React.FC = () => {
       <PetUnlockModal
         pet={unlockedPet}
         isOpen={!!unlockedPet}
-        onClose={() => setUnlockedPet(null)}
+        onClose={handleCloseUnlockedModal}  // ✅ chỉ mở sau break
         onSetAsCompanion={setAsCompanion}
         isUnlocked={true}
       />
