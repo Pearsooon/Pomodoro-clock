@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,26 +16,10 @@ import { usePetCollection } from "@/hooks/usePetCollection";
 import { cn } from "@/lib/utils";
 import type { Pet } from "@/types/pet";
 import { PETS } from "@/data/pets";
-import { useNavigate } from "react-router-dom";
 
 const EVENT_PET_UNLOCKED = "pet:unlocked";
 
-const [showBlockPrompt, setShowBlockPrompt] = useState(false);
-const BLOCKED_APPS_KEY = "blocked_apps_v1"; // đổi theo key bạn đang lưu
-
-// --- hàm kiểm tra đã block app nào chưa
-const hasAnyBlocked = useCallback(() => {
-  try {
-    const raw = localStorage.getItem(BLOCKED_APPS_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) && arr.length > 0;
-  } catch {
-    return false;
-  }
-}, []);
-
-
-// --- helper: kiểm tra có app nào đã bị block chưa (đọc vài key phổ biến)
+/** Kiểm tra có app nào đã bị block chưa (đọc vài key phổ biến trong localStorage) */
 function hasAnyBlockedApps(): boolean {
   const KEYS = [
     "block_apps_v1",
@@ -50,7 +34,6 @@ function hasAnyBlockedApps(): boolean {
       if (!raw) continue;
       const val = JSON.parse(raw);
       if (Array.isArray(val) && val.length > 0) return true;
-      // cũng hỗ trợ dạng {apps: []}
       if (val && Array.isArray(val.apps) && val.apps.length > 0) return true;
     }
   } catch {}
@@ -58,8 +41,6 @@ function hasAnyBlockedApps(): boolean {
 }
 
 export const HomeTab: React.FC = () => {
-  const navigate = useNavigate();
-
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
 
@@ -91,34 +72,22 @@ export const HomeTab: React.FC = () => {
     setWorkMinutes,
   } = usePomodoro();
 
-  const focusBuddy = useMemo(() => PETS.find((p) => p.id === "focus-buddy") || null, []);
-
-  // --- điều hướng sang tab Block (vì BlockTab là component trong Index)
-  const goToBlockTab = useCallback(() => {
-    try {
-      // cho Index biết tab muốn mở
-      localStorage.setItem("active_tab", "block");
-    } catch {}
-    // bắn event cho Index nếu nó đang mở
-    try {
-      window.dispatchEvent(new CustomEvent("nav:tab", { detail: "block" }));
-    } catch {}
-    // fallback nếu Index đọc từ URL
-    window.location.href = "/?tab=block#block";
-  }, []);
-
+  const focusBuddy = useMemo(
+    () => PETS.find((p) => p.id === "focus-buddy") || null,
+    []
+  );
 
   const handleStartClick = () => {
     if (isRunning) {
       setShowStopDialog(true);
       return;
     }
-    // chưa chạy -> kiểm tra block list
+    // Chưa chạy -> kiểm tra block list
     if (!hasAnyBlockedApps()) {
       setShowBlockPrompt(true);
       return;
     }
-    // đã có app bị block -> mở chọn cycle như cũ
+    // Đã có app bị block -> mở chọn cycle như cũ
     setShowCycleModal(true);
   };
 
@@ -135,13 +104,17 @@ export const HomeTab: React.FC = () => {
     };
     window.addEventListener(EVENT_PET_UNLOCKED, onPetUnlocked as EventListener);
     return () =>
-      window.removeEventListener(EVENT_PET_UNLOCKED, onPetUnlocked as EventListener);
+      window.removeEventListener(
+        EVENT_PET_UNLOCKED,
+        onPetUnlocked as EventListener
+      );
   }, []);
 
   // Hiện popup chào mừng khi lần đầu vào trang
   useEffect(() => {
     const SEEN_KEY = "welcome_seen_v1";
-    const seen = typeof window !== "undefined" ? localStorage.getItem(SEEN_KEY) : "1";
+    const seen =
+      typeof window !== "undefined" ? localStorage.getItem(SEEN_KEY) : "1";
     if (!seen) {
       setShowWelcome(true);
       localStorage.setItem(SEEN_KEY, "1");
@@ -158,7 +131,8 @@ export const HomeTab: React.FC = () => {
   const prevPhase = useRef(phase);
   useEffect(() => {
     const endedWork =
-      prevPhase.current === "work" && (phase === "break" || phase === "completed");
+      prevPhase.current === "work" &&
+      (phase === "break" || phase === "completed");
 
     if (endedWork) {
       const cyclesDone = currentCycle;
@@ -227,7 +201,9 @@ export const HomeTab: React.FC = () => {
         {isRunning && (
           <div className="text-center mb-4">
             <span className="text-sm font-medium text-muted-foreground">
-              {isBreakMode ? "Break Time" : `Cycle ${currentCycle}/${totalCycles}`}
+              {isBreakMode
+                ? "Break Time"
+                : `Cycle ${currentCycle}/${totalCycles}`}
             </span>
           </div>
         )}
@@ -285,7 +261,6 @@ export const HomeTab: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {/* ⬇️ nút lựa chọn */}
           <div className="flex gap-3 mt-6">
             <Button
               variant="outline"
@@ -305,36 +280,44 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-
-      {/* Prompt nhắc block notifications */}
+      {/* Prompt nhắc block notifications — YES bên trái (cam), NO bên phải (đỏ) */}
       <Dialog open={showBlockPrompt} onOpenChange={setShowBlockPrompt}>
         <DialogContent className="sm:max-w-md mx-4">
           <DialogHeader>
-            <DialogTitle>You have not blocked notifications from any apps yet!</DialogTitle>
+            <DialogTitle>
+              You have not blocked notifications from any apps yet!
+            </DialogTitle>
             <DialogDescription>
               Do you want to block notifications before starting your session?
             </DialogDescription>
           </DialogHeader>
 
-          {/* YES bên trái (cam) – NO bên phải (đỏ) */}
           <div className="flex gap-3 mt-6">
+            {/* YES -> chuyển qua tab Block */}
             <Button
               className="flex-1 bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90"
               onClick={() => {
-                try { localStorage.setItem("active_tab", "block"); } catch {}
-                try { window.dispatchEvent(new CustomEvent("nav:tab", { detail: "block" as const })); } catch {}
+                try {
+                  localStorage.setItem("active_tab", "block");
+                } catch {}
+                try {
+                  window.dispatchEvent(
+                    new CustomEvent("nav:tab", { detail: "block" as const })
+                  );
+                } catch {}
                 setShowBlockPrompt(false);
               }}
             >
               Yes
             </Button>
 
+            {/* NO -> tiếp tục chọn cycle */}
             <Button
               variant="destructive"
               className="flex-1"
               onClick={() => {
                 setShowBlockPrompt(false);
-                setShowCycleModal(true); // tiếp tục chọn cycle như bình thường
+                setShowCycleModal(true);
               }}
             >
               No
@@ -343,10 +326,11 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-
-
-      {/* ✅ Welcome dialog khi mới vào trang (1 nút, ẩn dấu ✕) */}
-      <Dialog open={showWelcome} onOpenChange={(open) => !open && setShowWelcome(false)}>
+      {/* Welcome dialog khi mới vào trang (1 nút, ẩn dấu ✕) */}
+      <Dialog
+        open={showWelcome}
+        onOpenChange={(open) => !open && setShowWelcome(false)}
+      >
         <DialogContent className="sm:max-w-md mx-4 [&_[aria-label='Close']]:hidden">
           <DialogHeader className="text-center">
             <div className="flex justify-center mb-4">
