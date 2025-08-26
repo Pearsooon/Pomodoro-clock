@@ -31,7 +31,7 @@ const DEFAULT_USER_PETS: UserPet[] = [
     petId: 'focus-buddy',
     unlockedAt: new Date(),
     isCompanion: true,
-    progress: { petId: 'focus-buddy', level: 5, xp: 750, xpToNextLevel: LEVEL_XP },
+    progress: { petId: 'focus-buddy', level: 1, xp: 0, xpToNextLevel: LEVEL_XP },
   },
 ];
 
