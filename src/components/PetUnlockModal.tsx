@@ -32,7 +32,7 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
   if (!isUnlocked) {
     return (
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-md mx-4">
+        <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0">
           <DialogHeader className="text-center">
             <DialogTitle className="text-xl">Locked</DialogTitle>
           </DialogHeader>
@@ -52,7 +52,7 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md mx-4">
+      <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0">
         <DialogHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="relative">

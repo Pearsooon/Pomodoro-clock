@@ -305,7 +305,7 @@ export const HomeTab: React.FC = () => {
         open={showStopDialog}
         onOpenChange={(open) => !open && setShowStopDialog(false)}
       >
-        <DialogContent className="sm:max-w-md mx-4">
+        <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0">
           <DialogHeader>
             <DialogTitle>Stop Session?</DialogTitle>
             <DialogDescription>
@@ -334,7 +334,7 @@ export const HomeTab: React.FC = () => {
 
       {/* Prompt nhắc block notifications — YES bên trái (cam), NO bên phải (đỏ) */}
       <Dialog open={showBlockPrompt} onOpenChange={setShowBlockPrompt}>
-        <DialogContent className="sm:max-w-md mx-4">
+        <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0">
           <DialogHeader>
             <DialogTitle>
               No blocked apps detected!
@@ -381,7 +381,7 @@ export const HomeTab: React.FC = () => {
         open={showWelcome}
         onOpenChange={(open) => !open && setShowWelcome(false)}
       >
-        <DialogContent className="sm:max-w-md mx-4 [&_[aria-label='Close']]:hidden">
+        <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0 [&_[aria-label='Close']]:hidden">
           <DialogHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="relative">
