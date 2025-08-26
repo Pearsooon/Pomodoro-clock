@@ -1,21 +1,30 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { CircularTimer } from '@/components/CircularTimer';
-import { CycleModal } from '@/components/CycleModal';
-import { PetUnlockModal } from '@/components/PetUnlockModal';
-import { usePomodoro } from '@/hooks/usePomodoro';
-import { usePetCollection } from '@/hooks/usePetCollection';
-import { cn } from '@/lib/utils';
-import type { Pet } from '@/types/pet';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { CircularTimer } from "@/components/CircularTimer";
+import { CycleModal } from "@/components/CycleModal";
+import { PetUnlockModal } from "@/components/PetUnlockModal";
+import { usePomodoro } from "@/hooks/usePomodoro";
+import { usePetCollection } from "@/hooks/usePetCollection";
+import { cn } from "@/lib/utils";
+import type { Pet } from "@/types/pet";
+
+const EVENT_PET_UNLOCKED = "pet:unlocked";
 
 export const HomeTab: React.FC = () => {
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
   const [unlockedPet, setUnlockedPet] = useState<Pet | null>(null);
 
-  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion } = usePetCollection();
+  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion } =
+    usePetCollection();
 
   const {
     minutes,
@@ -25,10 +34,10 @@ export const HomeTab: React.FC = () => {
     isBreakMode,
     currentCycle,
     totalCycles,
-    phase,                 // 'idle' | 'work' | 'break' | 'completed'
+    phase, // 'idle' | 'work' | 'break' | 'completed'
     startTimer,
     stopTimer,
-    setWorkMinutes
+    setWorkMinutes,
   } = usePomodoro();
 
   const handleStartClick = () => {
@@ -41,52 +50,55 @@ export const HomeTab: React.FC = () => {
     setShowStopDialog(false);
   };
 
-  // ===== Detect end-of-work-phase (work -> break or work -> completed)
-  const prevPhase = useRef(phase);
-  // 1) Luôn nghe event mở khóa pet
+  // ── Listen global "pet:unlocked" event to always open modal
   useEffect(() => {
     const onPetUnlocked = (e: Event) => {
       const ce = e as CustomEvent<Pet>;
       if (ce?.detail) setUnlockedPet(ce.detail);
     };
-    window.addEventListener('pet:unlocked', onPetUnlocked as EventListener);
-    return () => window.removeEventListener('pet:unlocked', onPetUnlocked as EventListener);
+    window.addEventListener(EVENT_PET_UNLOCKED, onPetUnlocked as EventListener);
+    return () =>
+      window.removeEventListener(
+        EVENT_PET_UNLOCKED,
+        onPetUnlocked as EventListener
+      );
   }, []);
-  
-  // 2) Phát hiện kết thúc phiên work và check drop
+
+  // ── Detect end-of-work-phase (work -> break | completed)
   const prevPhase = useRef(phase);
   useEffect(() => {
     const endedWork =
-      prevPhase.current === 'work' && (phase === 'break' || phase === 'completed');
-  
+      prevPhase.current === "work" &&
+      (phase === "break" || phase === "completed");
+
     if (endedWork) {
-      const cyclesDone = currentCycle;     // số cycle đã hoàn thành đến lúc này
-      const currentStreak = 0;             // TODO: thay bằng giá trị thực nếu có
-      const focusMinutes = totalMinutes;   // độ dài phiên work vừa xong
-      const level = 1;                     // TODO: level thực
-  
-      console.log('[PET] end-of-work detected', {
-        prev: prevPhase.current, phase, cyclesDone, focusMinutes
-      });
-  
+      // các số liệu tối thiểu để tính drop
+      const cyclesDone = currentCycle; // số cycle đã hoàn thành đến thời điểm này
+      const currentStreak = 0; // TODO: thay nếu có cơ chế streak
+      const focusMinutes = totalMinutes; // độ dài phiên work vừa xong
+      const level = 1; // TODO: level thực tế nếu có
+
+      // Gọi đúng chữ ký (object)
       const newPets = checkForNewPetUnlocks({
         totalCycles: cyclesDone,
         currentStreak,
         totalFocusMinutes: focusMinutes,
-        level
+        level,
       });
-  
-      console.log('[PET] checkForNewPetUnlocks ->', newPets);
+
       if (newPets && newPets.length > 0) {
-        setUnlockedPet(newPets[0]);        // mở modal ngay cả khi event fail
+        // Mở modal ngay cả khi event vì lý do nào đó không catch
+        setUnlockedPet(newPets[0]);
       }
     }
     prevPhase.current = phase;
   }, [phase, currentCycle, totalMinutes, checkForNewPetUnlocks]);
 
-
-  const formatTime = (m: number, s: number) =>
-    `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  const formatTime = useMemo(
+    () => (m: number, s: number) =>
+      `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`,
+    []
+  );
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-6 space-y-8">
@@ -99,7 +111,7 @@ export const HomeTab: React.FC = () => {
         {isRunning && (
           <div className="text-center mb-4">
             <span className="text-sm font-medium text-muted-foreground">
-              {isBreakMode ? 'Break Time' : `Cycle ${currentCycle}/${totalCycles}`}
+              {isBreakMode ? "Break Time" : `Cycle ${currentCycle}/${totalCycles}`}
             </span>
           </div>
         )}
@@ -138,7 +150,7 @@ export const HomeTab: React.FC = () => {
               : "border-2 border-success text-success bg-transparent hover:bg-success hover:text-success-foreground"
           )}
         >
-          {isRunning ? 'Stop' : 'Start'}
+          {isRunning ? "Stop" : "Start"}
         </Button>
       </Card>
 
@@ -150,14 +162,18 @@ export const HomeTab: React.FC = () => {
       />
 
       {/* Stop confirm */}
-      <Dialog open={showStopDialog} onOpenChange={setShowStopDialog}>
+      <Dialog open={showStopDialog} onOpenChange={(open) => !open && setShowStopDialog(false)}>
         <DialogContent className="sm:max-w-md mx-4">
           <DialogHeader>
             <DialogTitle>Stop Session?</DialogTitle>
             <DialogDescription>If you exit, data will not be saved.</DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={() => setShowStopDialog(false)} className="flex-1">
+            <Button
+              variant="outline"
+              onClick={() => setShowStopDialog(false)}
+              className="flex-1"
+            >
               Continue
             </Button>
             <Button variant="destructive" onClick={handleStopConfirm} className="flex-1">
@@ -173,7 +189,7 @@ export const HomeTab: React.FC = () => {
         isOpen={!!unlockedPet}
         onClose={() => setUnlockedPet(null)}
         onSetAsCompanion={setAsCompanion}
-        isUnlocked={true}   // vừa mở khóa → luôn coi là unlocked
+        isUnlocked={true}
       />
     </div>
   );
