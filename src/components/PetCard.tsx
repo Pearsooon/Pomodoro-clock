@@ -28,10 +28,6 @@ export const PetCard: React.FC<PetCardProps> = ({
     if (isUnlocked) setIsFlipped((v) => !v);
   };
 
-  const flipToBack = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (isUnlocked) setIsFlipped(true);
-  };
   const flipToFront = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     setIsFlipped(false);
@@ -100,13 +96,6 @@ export const PetCard: React.FC<PetCardProps> = ({
               </div>
             </div>
           )}
-
-          {/* Nút phụ (tùy chọn) để lật – hữu ích với người dùng không quen tap toàn thẻ */}
-          <div className="absolute bottom-2 right-2">
-            <Button size="xs" variant="outline" onClick={flipToBack}>
-              Details
-            </Button>
-          </div>
         </Card>
 
         {/* BACK (Details) */}
