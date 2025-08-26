@@ -1,23 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { Clock, Bell, BarChart3, Info } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Clock, Bell, BarChart3, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const navigate = useNavigate();
-const openInsights = () => navigate("/stats");
-
-
-const SETTINGS_KEY = 'appSettings';
-const TODO_PREFS_KEY = 'todoReminderPrefs';
+const SETTINGS_KEY = "appSettings";
+const TODO_PREFS_KEY = "todoReminderPrefs";
 
 type AppSettings = {
-  shortBreakLength: number;   // Break (min)
+  shortBreakLength: number;
   soundEnabled: boolean;
   vibrationEnabled: boolean;
   autoStartNext: boolean;
@@ -25,29 +21,28 @@ type AppSettings = {
 
 type TodoReminderPrefs = {
   eveningRemindEnabled: boolean;
-  eveningRemindTime: string;   // "HH:MM"
+  eveningRemindTime: string; // "HH:MM"
   unfinishedAlertEnabled: boolean;
-  resetTime: string;           // "HH:MM"
+  resetTime: string; // "HH:MM"
 };
 
 const DEFAULT_TODO_PREFS: TodoReminderPrefs = {
   eveningRemindEnabled: true,
-  eveningRemindTime: '20:30',
+  eveningRemindTime: "20:30",
   unfinishedAlertEnabled: true,
-  resetTime: '00:00',
+  resetTime: "00:00",
 };
 
 export const SettingsTab: React.FC = () => {
+  const navigate = useNavigate();
   const [settings, setSettings] = useState<AppSettings>({
     shortBreakLength: 5,
     soundEnabled: true,
     vibrationEnabled: true,
     autoStartNext: false,
   });
-
   const [todoPrefs, setTodoPrefs] = useState<TodoReminderPrefs>(DEFAULT_TODO_PREFS);
 
-  // Load settings
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
@@ -63,37 +58,27 @@ export const SettingsTab: React.FC = () => {
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
       localStorage.setItem(TODO_PREFS_KEY, JSON.stringify(todoPrefs));
-      alert('Settings saved.');
+      alert("Settings saved.");
     } catch {
-      alert('Failed to save settings.');
+      alert("Failed to save settings.");
     }
   };
 
-  const requestNotifPerm = async () => {
-    if (!('Notification' in window)) {
-      alert('Your browser does not support notifications.');
-      return;
-    }
-    const perm = await Notification.requestPermission();
-    if (perm === 'granted') alert('Notifications enabled.');
-    else alert('Notifications not granted.');
-  };
+  const openInsights = () => navigate("/stats");
 
   return (
     <div className="p-6 pb-20 space-y-6">
-      {/* Header */}
       <div className="text-center">
         <h1 className="text-2xl font-bold text-foreground mb-2">Settings</h1>
         <p className="text-muted-foreground">Customize your Pomodoro & To-Do experience</p>
       </div>
 
-      {/* Timer Settings: chỉ Break (min) + Save */}
+      {/* Timer Settings */}
       <Card className="p-4 space-y-4">
         <div className="flex items-center gap-2 mb-3">
           <Clock className="w-5 h-5 text-primary" />
           <h3 className="text-lg font-semibold">Timer Settings</h3>
         </div>
-
         <div className="max-w-[220px]">
           <Label htmlFor="shortBreak">Break (min)</Label>
           <Input
@@ -113,137 +98,102 @@ export const SettingsTab: React.FC = () => {
         </div>
       </Card>
 
-      {/* Notifications (Pomodoro) */}
+      {/* Pomodoro Notifications */}
       <Card className="p-4 space-y-4">
         <div className="flex items-center gap-2 mb-3">
           <Bell className="w-5 h-5 text-primary" />
           <h3 className="text-lg font-semibold">Pomodoro Notifications</h3>
         </div>
-
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">Sound</div>
-              <div className="text-sm text-muted-foreground">Play sound when phases end</div>
-            </div>
+          <Row label="Sound" desc="Play sound when phases end">
             <Switch
               checked={settings.soundEnabled}
               onCheckedChange={(checked) => setSettings((p) => ({ ...p, soundEnabled: checked }))}
             />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">Vibration</div>
-              <div className="text-sm text-muted-foreground">Vibrate on phase transitions</div>
-            </div>
+          </Row>
+          <Row label="Vibration" desc="Vibrate on phase transitions">
             <Switch
               checked={settings.vibrationEnabled}
               onCheckedChange={(checked) => setSettings((p) => ({ ...p, vibrationEnabled: checked }))}
             />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-medium">Auto-start next session</div>
-              <div className="text-sm text-muted-foreground">Automatically begin next phase</div>
-            </div>
+          </Row>
+          <Row label="Auto-start next session" desc="Automatically begin next phase">
             <Switch
               checked={settings.autoStartNext}
               onCheckedChange={(checked) => setSettings((p) => ({ ...p, autoStartNext: checked }))}
             />
-          </div>
+          </Row>
         </div>
       </Card>
 
-      {/* NEW: To-Do Reminders */}
+      {/* To-Do Reminders */}
       <Card className="p-4 space-y-4">
         <div className="flex items-center gap-2 mb-3">
           <Bell className="w-5 h-5 text-primary" />
           <h3 className="text-lg font-semibold">To-Do Reminders</h3>
         </div>
 
-        <div className="space-y-4">
-          {/* Evening remind */}
-          <div className="flex items-center justify-between">
-            <div className="mr-4">
-              <div className="font-medium">Evening reminder to plan tomorrow</div>
-              <div className="text-sm text-muted-foreground">
-                Prompts you to add tasks for tomorrow at a set time each evening
-              </div>
-            </div>
-            <Switch
-              checked={todoPrefs.eveningRemindEnabled}
-              onCheckedChange={(checked) => setTodoPrefs((p) => ({ ...p, eveningRemindEnabled: checked }))}
-            />
-          </div>
-          <div className="max-w-[220px]">
-            <Label htmlFor="evening-time">Evening reminder time</Label>
-            <Input
-              id="evening-time"
-              type="time"
-              value={todoPrefs.eveningRemindTime}
-              onChange={(e) => setTodoPrefs((p) => ({ ...p, eveningRemindTime: e.target.value || '20:30' }))}
-              className="mt-1"
-            />
-          </div>
+        <Row
+          label="Evening reminder to plan tomorrow"
+          desc="Prompts you to add tasks for tomorrow at a set time each evening"
+        >
+          <Switch
+            checked={todoPrefs.eveningRemindEnabled}
+            onCheckedChange={(checked) => setTodoPrefs((p) => ({ ...p, eveningRemindEnabled: checked }))}
+          />
+        </Row>
 
-          <Separator />
+        <div className="max-w-[220px]">
+          <Label htmlFor="evening-time">Evening reminder time</Label>
+          <Input
+            id="evening-time"
+            type="time"
+            value={todoPrefs.eveningRemindTime}
+            onChange={(e) => setTodoPrefs((p) => ({ ...p, eveningRemindTime: e.target.value || "20:30" }))}
+            className="mt-1"
+          />
+        </div>
 
-          {/* Unfinished alert before reset-time */}
-          <div className="flex items-center justify-between">
-            <div className="mr-4">
-              <div className="font-medium">Alert unfinished tasks before reset-time</div>
-              <div className="text-sm text-muted-foreground">
-                Warns you if there are unfinished tasks before the daily reset
-              </div>
-            </div>
-            <Switch
-              checked={todoPrefs.unfinishedAlertEnabled}
-              onCheckedChange={(checked) => setTodoPrefs((p) => ({ ...p, unfinishedAlertEnabled: checked }))}
-            />
-          </div>
-          <div className="max-w-[220px]">
-            <Label htmlFor="reset-time">Daily reset time</Label>
-            <Input
-              id="reset-time"
-              type="time"
-              value={todoPrefs.resetTime}
-              onChange={(e) => setTodoPrefs((p) => ({ ...p, resetTime: e.target.value || '00:00' }))}
-              className="mt-1"
-            />
-          </div>
+        <Separator />
 
-          {/* Browser notification permission */}
-          <div className="flex items-center gap-2 pt-2">
-            <Button variant="outline" onClick={requestNotifPerm}>Enable browser notifications</Button>
-            <span className="text-xs text-muted-foreground">
-              (optional) Allow notifications so reminders can appear even when tab is inactive
-            </span>
-          </div>
+        <Row
+          label="Alert unfinished tasks before reset-time"
+          desc="Warns you if there are unfinished tasks before the daily reset"
+        >
+          <Switch
+            checked={todoPrefs.unfinishedAlertEnabled}
+            onCheckedChange={(checked) => setTodoPrefs((p) => ({ ...p, unfinishedAlertEnabled: checked }))}
+          />
+        </Row>
+
+        <div className="max-w-[220px]">
+          <Label htmlFor="reset-time">Daily reset time</Label>
+          <Input
+            id="reset-time"
+            type="time"
+            value={todoPrefs.resetTime}
+            onChange={(e) => setTodoPrefs((p) => ({ ...p, resetTime: e.target.value || "00:00" }))}
+            className="mt-1"
+          />
         </div>
 
         <div className="flex justify-end pt-2">
+          <Button onClick={openInsights} variant="secondary" className="mr-2">Focus Insights</Button>
           <Button onClick={saveAll} className="min-w-[120px]">Save</Button>
         </div>
       </Card>
-            
-      {/* Insights */} 
-      <Card className="p-4 space-y-4">
-      <div className="flex items-center gap-2 mb-3">
-        <BarChart3 className="w-5 h-5 text-primary" />
-        <h3 className="text-lg font-semibold">Insights</h3>
-      </div>
-      <div className="space-y-3">
+
+      {/* Insights (quick access) */}
+      <Card className="p-4 space-y-2">
+        <div className="flex items-center gap-2 mb-1">
+          <BarChart3 className="w-5 h-5 text-primary" />
+          <h3 className="text-lg font-semibold">Insights</h3>
+        </div>
         <p className="text-sm text-muted-foreground">
           View charts of your Pomodoro hours and active days.
         </p>
-        <Button onClick={openInsights} className="min-w-[160px]">
-          Focus Insights
-        </Button>
-      </div>
-    </Card>
-
+        <Button onClick={openInsights} className="w-fit">Focus Insights</Button>
+      </Card>
 
       {/* About */}
       <Card className="p-4">
@@ -265,3 +215,25 @@ export const SettingsTab: React.FC = () => {
     </div>
   );
 };
+
+function Row({
+  label,
+  desc,
+  children,
+}: {
+  label: string;
+  desc?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="mr-4">
+        <div className="font-medium">{label}</div>
+        {desc && <div className="text-sm text-muted-foreground">{desc}</div>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export default SettingsTab;
