@@ -34,17 +34,15 @@ export const PetGallery: React.FC = () => {
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("none");
 
-  const { userPets, isPetUnlocked, getPetProgress, setAsCompanion } =
-    usePetCollection();
+  // ❌ bỏ getPetProgress (không còn XP)
+  const { userPets, isPetUnlocked, setAsCompanion } = usePetCollection();
 
   const filteredPets = useMemo(() => {
     let list = PETS.filter((pet) => {
-      // Search
       const matchesSearch =
         pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         pet.description.toLowerCase().includes(searchTerm.toLowerCase());
 
-      // Ownership
       const owned = isPetUnlocked(pet.id);
       const matchesFilter =
         viewFilter === "all" ||
@@ -54,7 +52,6 @@ export const PetGallery: React.FC = () => {
       return matchesSearch && matchesFilter;
     });
 
-    // Sort by rarity if chosen
     if (sortMode === "rarity_asc") {
       list = [...list].sort(
         (a, b) => rarityWeight[a.rarity] - rarityWeight[b.rarity]
@@ -111,7 +108,6 @@ export const PetGallery: React.FC = () => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>Show</DropdownMenuLabel>
-            {/* ✅ Radio group hiển thị option đang chọn */}
             <DropdownMenuRadioGroup
               value={viewFilter}
               onValueChange={(v) => setViewFilter(v as ViewFilter)}
@@ -146,7 +142,6 @@ export const PetGallery: React.FC = () => {
           const unlocked = isPetUnlocked(pet.id);
           const isCompanion =
             userPets.find((up) => up.petId === pet.id)?.isCompanion || false;
-          const progress = getPetProgress(pet.id);
 
           if (!unlocked) {
             return (
@@ -168,7 +163,6 @@ export const PetGallery: React.FC = () => {
               pet={pet}
               isUnlocked
               isCompanion={isCompanion}
-              progress={progress}
               onSetAsCompanion={setAsCompanion}
             />
           );
