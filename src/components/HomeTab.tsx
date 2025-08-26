@@ -23,7 +23,7 @@ export const HomeTab: React.FC = () => {
   const [showStopDialog, setShowStopDialog] = useState(false);
   const [unlockedPet, setUnlockedPet] = useState<Pet | null>(null);
 
-  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion } =
+  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
     usePetCollection();
 
   const {
@@ -50,7 +50,7 @@ export const HomeTab: React.FC = () => {
     setShowStopDialog(false);
   };
 
-  // listen global "pet:unlocked"
+  // Listen global unlock event
   useEffect(() => {
     const onPetUnlocked = (e: Event) => {
       const ce = e as CustomEvent<Pet>;
@@ -64,7 +64,7 @@ export const HomeTab: React.FC = () => {
       );
   }, []);
 
-  // detect end-of-work
+  // Detect transitions
   const prevPhase = useRef(phase);
   useEffect(() => {
     const endedWork =
@@ -83,13 +83,20 @@ export const HomeTab: React.FC = () => {
         totalFocusMinutes: focusMinutes,
         level,
       });
-
       if (newPets && newPets.length > 0) {
         setUnlockedPet(newPets[0]);
       }
     }
+
+    // ✅ Chỉ khi kết thúc toàn bộ session (completed) mới cộng XP:
+    // XP = minutesPerWork × totalCycles đã chọn lúc bắt đầu
+    if (prevPhase.current === "work" && phase === "completed") {
+      const xp = awardSessionXP(totalMinutes, totalCycles);
+      console.log(`[XP] +${xp} XP to companion for session: ${totalMinutes}m × ${totalCycles} cycles`);
+    }
+
     prevPhase.current = phase;
-  }, [phase, currentCycle, totalMinutes, checkForNewPetUnlocks]);
+  }, [phase, currentCycle, totalMinutes, totalCycles, checkForNewPetUnlocks, awardSessionXP]);
 
   const formatTime = useMemo(
     () => (m: number, s: number) =>
@@ -137,7 +144,7 @@ export const HomeTab: React.FC = () => {
           )}
         </div>
 
-        {/* Start/Stop primary button */}
+        {/* Start/Stop button: Start = cam; Stop = nền đỏ chữ trắng */}
         <Button
           onClick={handleStartClick}
           className={cn(
