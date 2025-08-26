@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Clock, Search, Pencil } from 'lucide-react';
+import { Plus, Calendar, Clock, Search, Pencil, Trash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
 
 /* ===================== Types & consts ===================== */
 
@@ -218,6 +219,10 @@ export const TodoTab: React.FC = () => {
     setTasks(prev => prev.map(t => (t.id === id ? { ...t, title: newTitle } : t)));
   };
 
+  const deleteTask = (id: string) => {
+  setTasks(prev => prev.filter(t => t.id !== id));
+  };
+
   // ---- History: search / filter / sort + hiển thị tên task
   const [historyQuery, setHistoryQuery] = useState('');
   const [historyMonth, setHistoryMonth] = useState<string>('all'); // '1'..'12' | 'all'
@@ -299,7 +304,7 @@ export const TodoTab: React.FC = () => {
       <Tabs defaultValue="today" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="tomorrow">Tomorrow</TabsTrigger>
+          { <TabsTrigger value="tomorrow">Tomorrow</TabsTrigger> }
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
 
@@ -334,7 +339,7 @@ export const TodoTab: React.FC = () => {
               <div className="text-center py-8 text-muted-foreground">No tasks for today</div>
             ) : (
               todayTasks.map(task => (
-                <TaskRow key={task.id} task={task} onToggle={toggleTask} onEditTitle={updateTitle} />
+                <TaskRow key={task.id} task={task} onToggle={toggleTask} onEditTitle={updateTitle} onDelete={deleteTask} />
               ))
             )}
           </div>
@@ -371,7 +376,7 @@ export const TodoTab: React.FC = () => {
               <div className="text-center py-8 text-muted-foreground">No tasks planned for tomorrow</div>
             ) : (
               tomorrowTasks.map(task => (
-                <TaskRow key={task.id} task={task} onToggle={toggleTask} onEditTitle={updateTitle} />
+                <TaskRow key={task.id} task={task} onToggle={toggleTask} onEditTitle={updateTitle} onDelete={deleteTask}/>
               ))
             )}
           </div>
@@ -490,7 +495,8 @@ const TaskRow: React.FC<{
   task: Task;
   onToggle: (id: string) => void;
   onEditTitle: (id: string, newTitle: string) => void;
-}> = ({ task, onToggle, onEditTitle }) => {
+  onDelete: (id:string) => void;
+}> = ({ task, onToggle, onEditTitle, onDelete }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
 
@@ -532,9 +538,23 @@ const TaskRow: React.FC<{
                   aria-label="Edit task"
                   title="Edit"
                 >
-                  <Pencil className="w-4 h-4" />
+                  <Pencil className="w-4 h-4" style={{ color: "#FF6D53", fontWeight: "bold" }} />
                 </Button>
+
+                {/* Nút Xoá */}
+                <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="shrink-0"
+                onClick={() => onDelete(task.id)}
+                aria-label="Delete task"
+                title="Delete"
+              > 
+                <Trash className="w-1 h-1" style={{ color: "#FF6D53", fontWeight: "bold" }} />
+              </Button>
               </div>
+
 
               <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
