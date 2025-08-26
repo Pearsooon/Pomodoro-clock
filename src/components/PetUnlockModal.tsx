@@ -1,16 +1,16 @@
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Lock } from 'lucide-react';
-import { Pet, RARITY_STYLES } from '@/types/pet';
-import { cn } from '@/lib/utils';
+import React from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Lock } from "lucide-react";
+import { Pet, RARITY_STYLES } from "@/types/pet";
+import { cn } from "@/lib/utils";
 
 interface PetUnlockModalProps {
   pet: Pet | null;
   isOpen: boolean;
   onClose: () => void;
   onSetAsCompanion?: (petId: string) => void;
-  isUnlocked?: boolean;
+  isUnlocked?: boolean; // locked/unlocked UI toggle
 }
 
 export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
@@ -18,16 +18,17 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
   isOpen,
   onClose,
   onSetAsCompanion,
-  isUnlocked = true
+  isUnlocked = true,
 }) => {
   if (!pet) return null;
 
-  // Only close when dialog changes to "closed"
+  // Only close when dialog transitions to closed
   const handleOpenChange = (open: boolean) => {
     if (!open) onClose();
   };
 
   if (!isUnlocked) {
+    // Locked UI
     return (
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md mx-4">
@@ -39,13 +40,16 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             <p className="text-sm">This pet is currently locked.</p>
           </div>
           <div className="flex justify-center mt-4">
-            <Button variant="outline" onClick={onClose}>Close</Button>
+            <Button variant="outline" onClick={onClose}>
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
     );
   }
 
+  // Unlocked UI
   const rarityStyle = RARITY_STYLES[pet.rarity];
 
   return (
@@ -57,13 +61,13 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
               <div
                 className={cn(
                   "absolute inset-0 rounded-full animate-ping",
-                  pet.rarity === 'Legendary'
-                    ? 'bg-yellow-400'
-                    : pet.rarity === 'Epic'
-                    ? 'bg-purple-400'
-                    : pet.rarity === 'Rare'
-                    ? 'bg-blue-400'
-                    : 'bg-gray-400'
+                  pet.rarity === "Legendary"
+                    ? "bg-yellow-400"
+                    : pet.rarity === "Epic"
+                    ? "bg-purple-400"
+                    : pet.rarity === "Rare"
+                    ? "bg-blue-400"
+                    : "bg-gray-400"
                 )}
               />
               <div
