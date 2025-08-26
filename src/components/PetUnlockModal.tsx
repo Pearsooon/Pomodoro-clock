@@ -10,7 +10,7 @@ interface PetUnlockModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSetAsCompanion?: (petId: string) => void;
-  isUnlocked?: boolean;   // thêm prop này
+  isUnlocked?: boolean;
 }
 
 export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
@@ -18,14 +18,18 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
   isOpen,
   onClose,
   onSetAsCompanion,
-  isUnlocked = true   // mặc định true nếu không truyền
+  isUnlocked = true
 }) => {
   if (!pet) return null;
 
+  // Only close when dialog changes to "closed"
+  const handleOpenChange = (open: boolean) => {
+    if (!open) onClose();
+  };
+
   if (!isUnlocked) {
-    // 🟢 Giao diện Locked
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-md mx-4">
           <DialogHeader className="text-center">
             <DialogTitle className="text-xl">Locked</DialogTitle>
@@ -42,34 +46,37 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
     );
   }
 
-  // 🟢 Giao diện Unlocked (giữ nguyên code cũ)
   const rarityStyle = RARITY_STYLES[pet.rarity];
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md mx-4">
         <DialogHeader className="text-center">
           <div className="flex justify-center mb-4">
             <div className="relative">
-              <div className={cn(
-                "absolute inset-0 rounded-full animate-ping",
-                pet.rarity === 'Legendary' ? 'bg-yellow-400' : 
-                pet.rarity === 'Epic' ? 'bg-purple-400' : 
-                pet.rarity === 'Rare' ? 'bg-blue-400' : 'bg-gray-400'
-              )} />
-              <div className={cn(
-                "relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background",
-                rarityStyle.border
-              )}>
-                <img 
-                  src={pet.image} 
-                  alt={pet.name}
-                  className="w-12 h-12 object-contain"
-                />
+              <div
+                className={cn(
+                  "absolute inset-0 rounded-full animate-ping",
+                  pet.rarity === 'Legendary'
+                    ? 'bg-yellow-400'
+                    : pet.rarity === 'Epic'
+                    ? 'bg-purple-400'
+                    : pet.rarity === 'Rare'
+                    ? 'bg-blue-400'
+                    : 'bg-gray-400'
+                )}
+              />
+              <div
+                className={cn(
+                  "relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background",
+                  rarityStyle.border
+                )}
+              >
+                <img src={pet.image} alt={pet.name} className="w-12 h-12 object-contain" />
               </div>
             </div>
           </div>
-          
+
           <div className="flex items-center justify-center gap-2 mb-2">
             <DialogTitle className="text-xl">New Pet Unlocked!</DialogTitle>
           </div>
