@@ -34,8 +34,6 @@ export const HomeTab: React.FC = () => {
   const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
     usePetCollection();
 
-  const { logAppOpen, logSession } = useFocusStats();
-
   const {
     minutes,
     seconds,
@@ -120,7 +118,6 @@ export const HomeTab: React.FC = () => {
     // Cộng XP khi hoàn tất toàn bộ buổi học
     if (prevPhase.current === "work" && phase === "completed") {
       const xp = awardSessionXP(totalMinutes, totalCycles);
-      logSession(totalMinutes, totalCycles);
       console.log(
         `[XP] +${xp} XP to companion for session: ${totalMinutes}m × ${totalCycles} cycles`
       );
