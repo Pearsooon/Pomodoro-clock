@@ -24,8 +24,11 @@ export const HomeTab: React.FC = () => {
 
   // Modal đang hiển thị 1 pet
   const [unlockedPet, setUnlockedPet] = useState<Pet | null>(null);
-  // ✅ Hàng chờ pet mở khóa (không bật modal nếu đang break)
+  // Hàng chờ pet mở khóa (không bật modal nếu đang break)
   const [pendingUnlockedPets, setPendingUnlockedPets] = useState<Pet[]>([]);
+
+  // ✅ Popup chào mừng đầu vào
+  const [showWelcome, setShowWelcome] = useState(false);
 
   const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
     usePetCollection();
@@ -70,6 +73,23 @@ export const HomeTab: React.FC = () => {
       );
   }, []);
 
+  // ✅ Hiện popup chào mừng khi lần đầu vào trang
+  useEffect(() => {
+    const SEEN_KEY = "welcome_seen_v1";
+    const seen = typeof window !== "undefined" ? localStorage.getItem(SEEN_KEY) : "1";
+    if (!seen) {
+      setShowWelcome(true);
+      localStorage.setItem(SEEN_KEY, "1");
+    }
+  }, []);
+
+  const closeWelcome = () => setShowWelcome(false);
+  const setFocusBuddyAndCloseWelcome = () => {
+    // ID mặc định của pet đầu tiên là 'focus-buddy'
+    setAsCompanion("focus-buddy");
+    setShowWelcome(false);
+  };
+
   // Phát hiện chuyển pha
   const prevPhase = useRef(phase);
   useEffect(() => {
@@ -78,8 +98,7 @@ export const HomeTab: React.FC = () => {
       (phase === "break" || phase === "completed");
 
     if (endedWork) {
-      // ✅ Gọi logic rơi pet nhưng KHÔNG mở modal tại đây
-      //   (pet sẽ được đưa vào queue qua event ở trên)
+      // Gọi logic rơi pet nhưng KHÔNG mở modal tại đây
       const cyclesDone = currentCycle;
       const currentStreak = 0;
       const focusMinutes = totalMinutes;
@@ -93,7 +112,7 @@ export const HomeTab: React.FC = () => {
       });
     }
 
-    // ✅ Cộng XP khi hoàn tất toàn bộ buổi học
+    // Cộng XP khi hoàn tất toàn bộ buổi học
     if (prevPhase.current === "work" && phase === "completed") {
       const xp = awardSessionXP(totalMinutes, totalCycles);
       console.log(
@@ -111,7 +130,7 @@ export const HomeTab: React.FC = () => {
     awardSessionXP,
   ]);
 
-  // ✅ Khi KHÔNG ở break (tức break vừa xong hoặc đã completed) → nếu có queue & chưa mở modal → bật modal
+  // Khi KHÔNG ở break (tức break vừa xong hoặc đã completed) → nếu có queue & chưa mở modal → bật modal
   useEffect(() => {
     const notInBreak = phase !== "break";
     if (notInBreak && !unlockedPet && pendingUnlockedPets.length > 0) {
@@ -120,7 +139,7 @@ export const HomeTab: React.FC = () => {
     }
   }, [phase, unlockedPet, pendingUnlockedPets]);
 
-  // Đóng modal: nếu còn queue & không ở break → mở tiếp; ngược lại đóng hẳn
+  // Đóng modal pet unlock: nếu còn queue & không ở break → mở tiếp; ngược lại đóng hẳn
   const handleCloseUnlockedModal = () => {
     if (phase !== "break" && pendingUnlockedPets.length > 0) {
       setUnlockedPet(pendingUnlockedPets[0]);
@@ -207,11 +226,52 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Pet unlock modal */}
+      {/* ✅ Welcome dialog khi mới vào trang */}
+      <Dialog
+        open={showWelcome}
+        onOpenChange={(open) => {
+          if (!open) closeWelcome();
+        }}
+      >
+        <DialogContent className="sm:max-w-md mx-4">
+          <DialogHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full animate-ping bg-blue-300/60" />
+                <div className="relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background border-blue-400">
+                  <img
+                    src={currentCompanion?.image}
+                    alt="Focus Buddy"
+                    className="w-12 h-12 object-contain"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogTitle className="text-xl">Meet Focus Buddy! Your first Pomodoro pet.</DialogTitle>
+          </DialogHeader>
+
+          <div className="text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Start focusing with Focus Buddy and earn more pets!
+            </p>
+
+            <div className="flex gap-3 mt-6">
+              <Button variant="outline" onClick={closeWelcome} className="flex-1">
+                View Later
+              </Button>
+              <Button onClick={setFocusBuddyAndCloseWelcome} className="flex-1">
+                Set as Companion
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pet unlock modal (sau break mới hiện) */}
       <PetUnlockModal
         pet={unlockedPet}
         isOpen={!!unlockedPet}
-        onClose={handleCloseUnlockedModal}  // ✅ chỉ mở sau break
+        onClose={handleCloseUnlockedModal}
         onSetAsCompanion={setAsCompanion}
         isUnlocked={true}
       />
