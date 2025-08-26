@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,20 +15,48 @@ import { usePomodoro } from "@/hooks/usePomodoro";
 import { usePetCollection } from "@/hooks/usePetCollection";
 import { cn } from "@/lib/utils";
 import type { Pet } from "@/types/pet";
-import { PETS } from "@/data/pets"; // ⬅️ dùng để lấy ảnh Focus Buddy
+import { PETS } from "@/data/pets";
+import { useNavigate } from "react-router-dom";
 
 const EVENT_PET_UNLOCKED = "pet:unlocked";
 
+// --- helper: kiểm tra có app nào đã bị block chưa (đọc vài key phổ biến)
+function hasAnyBlockedApps(): boolean {
+  const KEYS = [
+    "block_apps_v1",
+    "blockedApps",
+    "blocklist_v1",
+    "blocklist",
+    "focus_block_apps",
+  ];
+  try {
+    for (const k of KEYS) {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const val = JSON.parse(raw);
+      if (Array.isArray(val) && val.length > 0) return true;
+      // cũng hỗ trợ dạng {apps: []}
+      if (val && Array.isArray(val.apps) && val.apps.length > 0) return true;
+    }
+  } catch {}
+  return false;
+}
+
 export const HomeTab: React.FC = () => {
+  const navigate = useNavigate();
+
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
+
+  // Gợi ý block khi nhấn Start mà chưa block app nào
+  const [showBlockPrompt, setShowBlockPrompt] = useState(false);
 
   // Modal đang hiển thị 1 pet
   const [unlockedPet, setUnlockedPet] = useState<Pet | null>(null);
   // Hàng chờ pet mở khóa (không bật modal nếu đang break)
   const [pendingUnlockedPets, setPendingUnlockedPets] = useState<Pet[]>([]);
 
-  // ✅ Popup chào mừng đầu vào
+  // Popup chào mừng đầu vào
   const [showWelcome, setShowWelcome] = useState(false);
 
   const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
@@ -48,11 +76,25 @@ export const HomeTab: React.FC = () => {
     setWorkMinutes,
   } = usePomodoro();
 
-  const focusBuddy = useMemo(() => PETS.find(p => p.id === "focus-buddy") || null, []);
+  const focusBuddy = useMemo(() => PETS.find((p) => p.id === "focus-buddy") || null, []);
+
+  const goToBlockTab = useCallback(() => {
+    try { localStorage.setItem("active_tab", "block"); } catch {}
+    navigate("/?tab=block");
+  }, [navigate]);
 
   const handleStartClick = () => {
-    if (isRunning) setShowStopDialog(true);
-    else setShowCycleModal(true);
+    if (isRunning) {
+      setShowStopDialog(true);
+      return;
+    }
+    // chưa chạy -> kiểm tra block list
+    if (!hasAnyBlockedApps()) {
+      setShowBlockPrompt(true);
+      return;
+    }
+    // đã có app bị block -> mở chọn cycle như cũ
+    setShowCycleModal(true);
   };
 
   const handleStopConfirm = () => {
@@ -60,23 +102,18 @@ export const HomeTab: React.FC = () => {
     setShowStopDialog(false);
   };
 
-  // ⛳ Lắng nghe sự kiện mở khóa pet → CHỈ thêm vào queue (không mở modal ngay)
+  // Lắng nghe sự kiện mở khóa pet → CHỈ thêm vào queue
   useEffect(() => {
     const onPetUnlocked = (e: Event) => {
       const ce = e as CustomEvent<Pet>;
-      if (ce?.detail) {
-        setPendingUnlockedPets((prev) => [...prev, ce.detail]);
-      }
+      if (ce?.detail) setPendingUnlockedPets((prev) => [...prev, ce.detail]);
     };
     window.addEventListener(EVENT_PET_UNLOCKED, onPetUnlocked as EventListener);
     return () =>
-      window.removeEventListener(
-        EVENT_PET_UNLOCKED,
-        onPetUnlocked as EventListener
-      );
+      window.removeEventListener(EVENT_PET_UNLOCKED, onPetUnlocked as EventListener);
   }, []);
 
-  // ✅ Hiện popup chào mừng khi lần đầu vào trang
+  // Hiện popup chào mừng khi lần đầu vào trang
   useEffect(() => {
     const SEEN_KEY = "welcome_seen_v1";
     const seen = typeof window !== "undefined" ? localStorage.getItem(SEEN_KEY) : "1";
@@ -88,7 +125,6 @@ export const HomeTab: React.FC = () => {
 
   // Nút Let's go
   const letsGo = () => {
-    // Pet đầu tiên vốn là mặc định, nhưng set lại để chắc chắn
     setAsCompanion("focus-buddy");
     setShowWelcome(false);
   };
@@ -97,11 +133,9 @@ export const HomeTab: React.FC = () => {
   const prevPhase = useRef(phase);
   useEffect(() => {
     const endedWork =
-      prevPhase.current === "work" &&
-      (phase === "break" || phase === "completed");
+      prevPhase.current === "work" && (phase === "break" || phase === "completed");
 
     if (endedWork) {
-      // Gọi logic rơi pet nhưng KHÔNG mở modal tại đây
       const cyclesDone = currentCycle;
       const currentStreak = 0;
       const focusMinutes = totalMinutes;
@@ -135,14 +169,13 @@ export const HomeTab: React.FC = () => {
 
   // Khi KHÔNG ở break → nếu có queue & chưa mở modal → bật modal
   useEffect(() => {
-    const notInBreak = phase !== "break";
-    if (notInBreak && !unlockedPet && pendingUnlockedPets.length > 0) {
+    if (phase !== "break" && !unlockedPet && pendingUnlockedPets.length > 0) {
       setUnlockedPet(pendingUnlockedPets[0]);
       setPendingUnlockedPets((prev) => prev.slice(1));
     }
   }, [phase, unlockedPet, pendingUnlockedPets]);
 
-  // Đóng modal pet unlock: nếu còn queue & không ở break → mở tiếp; ngược lại đóng hẳn
+  // Đóng modal pet unlock
   const handleCloseUnlockedModal = () => {
     if (phase !== "break" && pendingUnlockedPets.length > 0) {
       setUnlockedPet(pendingUnlockedPets[0]);
@@ -215,24 +248,55 @@ export const HomeTab: React.FC = () => {
       />
 
       {/* Stop confirm */}
-      <Dialog
-        open={showStopDialog}
-        onOpenChange={(open) => !open && setShowStopDialog(false)}
-      >
+      <Dialog open={showStopDialog} onOpenChange={(open) => !open && setShowStopDialog(false)}>
         <DialogContent className="sm:max-w-md mx-4">
           <DialogHeader>
             <DialogTitle>Stop Session?</DialogTitle>
+            <DialogDescription>If you exit, data will not be saved.</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🔔 Prompt: chưa block app nào */}
+      <Dialog open={showBlockPrompt} onOpenChange={(open) => !open && setShowBlockPrompt(false)}>
+        <DialogContent className="sm:max-w-md mx-4">
+          <DialogHeader>
+            <DialogTitle>No blocked apps yet</DialogTitle>
             <DialogDescription>
-              If you exit, data will not be saved.
+              You have not blocked notifications from any apps yet! Do you want to block?
             </DialogDescription>
           </DialogHeader>
+
+          <div className="flex gap-3 mt-4">
+            {/* No = đỏ, tiếp tục chọn cycle */}
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={() => {
+                setShowBlockPrompt(false);
+                setShowCycleModal(true);
+              }}
+            >
+              No
+            </Button>
+
+            {/* Yes = cam, đi tới tab Block */}
+            <Button
+              className="flex-1 bg-[#FF6D53] text-white hover:bg-[#FF6D53]/90"
+              onClick={() => {
+                setShowBlockPrompt(false);
+                goToBlockTab();
+              }}
+            >
+              Yes
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* ✅ Welcome dialog khi mới vào trang (1 nút, ẩn dấu ✕) */}
       <Dialog open={showWelcome} onOpenChange={(open) => !open && setShowWelcome(false)}>
         <DialogContent className="sm:max-w-md mx-4 [&_[aria-label='Close']]:hidden">
-          {/* ^ tailwind selector: ẩn mọi phần tử con có aria-label='Close' (nút ✕ của Dialog) */}
           <DialogHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="relative">
@@ -255,7 +319,6 @@ export const HomeTab: React.FC = () => {
             <p className="text-sm text-muted-foreground">
               Start focusing with Focus Buddy and earn more pets!
             </p>
-
             <Button onClick={letsGo} className="w-full">
               Let&apos;s go
             </Button>
