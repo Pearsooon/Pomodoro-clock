@@ -142,14 +142,18 @@ export const HomeTab: React.FC = () => {
 
         <Button
           onClick={handleStartClick}
-          variant={isRunning ? "destructive" : "default"}
           className={cn(
-            "w-full py-3 text-lg font-medium rounded-full transition-all duration-200",
+            "w-full py-3 text-lg font-medium rounded-full transition-all duration-200 border-2",
             isRunning
-            ? "border-2 border-destructive text-destructive bg-transparent hover:bg-destructive hover:text-destructive-foreground"
-            : "border-2 border-[#FF6D53] bg-[#FF6D53] text-white hover:bg-transparent hover:text-[#FF6D53]"
+              // STOP: đỏ nền + chữ trắng
+              ? "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-destructive"
+              // START: cam nền + chữ trắng (giữ như bạn đang dùng)
+              : "bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#FF6D53]"
           )}
         >
+  {isRunning ? "Stop" : "Start"}
+</Button>
+
           {isRunning ? "Stop" : "Start"}
         </Button>
       </Card>
