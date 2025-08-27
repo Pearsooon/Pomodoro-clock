@@ -4,11 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Bell, BarChart3, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { BottomNavigation } from "@/components/BottomNavigation";
 
 const SETTINGS_KEY = "appSettings";
 const TODO_PREFS_KEY = "todoReminderPrefs";
@@ -85,17 +83,17 @@ export const SettingsTab: React.FC = () => {
           <Input
             id="shortBreak"
             type="number"
-            min={1}
+            min={0}                    // ⬅️ cho phép 0 phút
             max={60}
             value={settings.shortBreakLength}
-            onChange={(e) =>
-              setSettings((prev) => ({
-                ...prev,
-                shortBreakLength: Math.max(1, Math.min(60, Number(e.target.value) || 0)),
-              }))
-            }
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              const n = Number.isFinite(v) ? Math.min(60, Math.max(0, v)) : 0;
+              setSettings((prev) => ({ ...prev, shortBreakLength: n }));
+            }}
             className="mt-1"
           />
+          <p className="text-xs text-muted-foreground mt-1">Enter 0 to skip breaks.</p>
         </div>
       </Card>
 
@@ -178,15 +176,12 @@ export const SettingsTab: React.FC = () => {
       </Card>
 
       <div className="flex justify-center">
-        <Button
-          onClick={saveAll}
-          className="px-4 py-1 text-lg font-semibold"
-        >
+        <Button onClick={saveAll} className="px-4 py-1 text-lg font-semibold">
           Save All Settings
         </Button>
       </div>
 
-      {/* Insights (quick access) */}
+      {/* Insights */}
       <Card className="p-4 space-y-2">
         <div className="flex items-center gap-2 mb-1">
           <BarChart3 className="w-5 h-5 text-primary" />
@@ -195,7 +190,9 @@ export const SettingsTab: React.FC = () => {
         <p className="text-sm text-muted-foreground">
           View charts of your Pomodoro hours and active days.
         </p>
-        <Button onClick={openInsights} className="px-2.5 py-1.5 font-semibold">View Insights</Button>
+        <Button onClick={openInsights} className="px-2.5 py-1.5 font-semibold">
+          View Insights
+        </Button>
       </Card>
 
       {/* About */}

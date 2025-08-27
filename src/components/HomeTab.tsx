@@ -34,7 +34,6 @@ function hasAnyBlockedApps(): boolean {
     ];
     const fields = ["apps", "blocked", "list", "items", "bundleIds", "services"];
 
-    // 1) Thử các key phổ biến trước
     for (const k of preferred) {
       const raw = localStorage.getItem(k);
       if (!raw) continue;
@@ -48,7 +47,6 @@ function hasAnyBlockedApps(): boolean {
       }
     }
 
-    // 2) Quét toàn bộ localStorage: key có 'block' hoặc 'notif'
     const re = /(block|notif|noti|mute|silenc)/i;
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i) ?? "";
@@ -60,7 +58,6 @@ function hasAnyBlockedApps(): boolean {
       try {
         val = JSON.parse(raw);
       } catch {
-        // nếu là chuỗi thuần nhưng có nội dung -> coi như có
         if (raw.trim().length > 0) return true;
         continue;
       }
@@ -73,9 +70,7 @@ function hasAnyBlockedApps(): boolean {
         }
       }
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
   return false;
 }
 
@@ -83,16 +78,14 @@ export const HomeTab: React.FC = () => {
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
 
-
-  // Gợi ý block khi nhấn Start mà chưa block app nào
+  // Prompt block
   const [showBlockPrompt, setShowBlockPrompt] = useState(false);
 
-  // Modal đang hiển thị 1 pet
+  // Queue modal unlock pet
   const [unlockedPet, setUnlockedPet] = useState<Pet | null>(null);
-  // Hàng chờ pet mở khóa (không bật modal nếu đang break)
   const [pendingUnlockedPets, setPendingUnlockedPets] = useState<Pet[]>([]);
 
-  // Popup chào mừng đầu vào
+  // Welcome
   const [showWelcome, setShowWelcome] = useState(false);
 
   const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
@@ -122,12 +115,10 @@ export const HomeTab: React.FC = () => {
       setShowStopDialog(true);
       return;
     }
-    // Chưa chạy -> kiểm tra block list
     if (!hasAnyBlockedApps()) {
       setShowBlockPrompt(true);
       return;
     }
-    // Đã có app bị block -> mở chọn cycle như cũ
     setShowCycleModal(true);
   };
 
@@ -136,7 +127,7 @@ export const HomeTab: React.FC = () => {
     setShowStopDialog(false);
   };
 
-  // 🔄 Tự đóng prompt nếu blocklist thay đổi ở tab khác
+  // Tự đóng prompt nếu blocklist đổi ở tab khác
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
@@ -148,7 +139,7 @@ export const HomeTab: React.FC = () => {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Lắng nghe sự kiện mở khóa pet → CHỈ thêm vào queue
+  // Lắng nghe event mở khoá pet -> chỉ thêm vào queue
   useEffect(() => {
     const onPetUnlocked = (e: Event) => {
       const ce = e as CustomEvent<Pet>;
@@ -162,7 +153,7 @@ export const HomeTab: React.FC = () => {
       );
   }, []);
 
-  // Hiện popup chào mừng khi lần đầu vào trang
+  // Welcome first visit
   useEffect(() => {
     const SEEN_KEY = "welcome_seen_v1";
     const seen =
@@ -173,23 +164,22 @@ export const HomeTab: React.FC = () => {
     }
   }, []);
 
-  // Nút Let's go
   const letsGo = () => {
     setAsCompanion("focus-buddy");
     setShowWelcome(false);
   };
 
-  // Phát hiện chuyển pha
+  // ✅ Chỉ phát pet & (tuỳ chọn) cộng XP khi HOÀN THÀNH TẤT CẢ CYCLES
   const prevPhase = useRef(phase);
   useEffect(() => {
-    const endedWork =
-      prevPhase.current === "work" &&
-      (phase === "break" || phase === "completed");
+    const sessionCompleted =
+      prevPhase.current === "break" && phase === "completed";
 
-    if (endedWork) {
-      const cyclesDone = currentCycle;
+    if (sessionCompleted) {
+      // bạn có thể tinh chỉnh các tham số theo rule của bạn
+      const cyclesDone = totalCycles;
       const currentStreak = 0;
-      const focusMinutes = totalMinutes;
+      const focusMinutes = totalCycles * totalMinutes; // workLength * totalCycles
       const level = 1;
 
       checkForNewPetUnlocks({
@@ -198,27 +188,23 @@ export const HomeTab: React.FC = () => {
         totalFocusMinutes: focusMinutes,
         level,
       });
-    }
 
-    // Cộng XP khi hoàn tất toàn bộ buổi học
-    if (prevPhase.current === "work" && phase === "completed") {
-      const xp = awardSessionXP(totalMinutes, totalCycles);
-      console.log(
-        `[XP] +${xp} XP to companion for session: ${totalMinutes}m × ${totalCycles} cycles`
-      );
+      // Nếu vẫn muốn giữ XP: cộng sau khi hoàn thành toàn bộ session
+      try {
+        awardSessionXP(totalMinutes, totalCycles);
+      } catch {}
     }
 
     prevPhase.current = phase;
   }, [
     phase,
-    currentCycle,
-    totalMinutes,
     totalCycles,
+    totalMinutes,
     checkForNewPetUnlocks,
     awardSessionXP,
   ]);
 
-  // Khi KHÔNG ở break → nếu có queue & chưa mở modal → bật modal
+  // Mở modal pet nếu không ở break
   useEffect(() => {
     if (phase !== "break" && !unlockedPet && pendingUnlockedPets.length > 0) {
       setUnlockedPet(pendingUnlockedPets[0]);
@@ -226,7 +212,6 @@ export const HomeTab: React.FC = () => {
     }
   }, [phase, unlockedPet, pendingUnlockedPets]);
 
-  // Đóng modal pet unlock
   const handleCloseUnlockedModal = () => {
     if (phase !== "break" && pendingUnlockedPets.length > 0) {
       setUnlockedPet(pendingUnlockedPets[0]);
@@ -279,7 +264,6 @@ export const HomeTab: React.FC = () => {
           </div>
         </div>
 
-        {/* Start/Stop button: Start = cam; Stop = nền đỏ chữ trắng */}
         <Button
           onClick={handleStartClick}
           className={cn(
@@ -293,14 +277,12 @@ export const HomeTab: React.FC = () => {
         </Button>
       </Card>
 
-      {/* Cycle selection */}
       <CycleModal
         isOpen={showCycleModal}
         onClose={() => setShowCycleModal(false)}
         onStart={(cycles) => startTimer(cycles, totalMinutes)}
       />
 
-      {/* Stop confirm */}
       <Dialog
         open={showStopDialog}
         onOpenChange={(open) => !open && setShowStopDialog(false)}
@@ -332,24 +314,22 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Prompt nhắc block notifications — YES bên trái (cam), NO bên phải (đỏ) */}
       <Dialog open={showBlockPrompt} onOpenChange={setShowBlockPrompt}>
         <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0">
           <DialogHeader>
-            <DialogTitle>
-              No blocked apps detected!
-            </DialogTitle>
+            <DialogTitle>No blocked apps detected!</DialogTitle>
             <DialogDescription>
               Do you want to block notifications before starting your session?
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex gap-3 mt-6">
-            {/* YES -> chuyển qua tab Block */}
             <Button
               className="flex-1 bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90"
               onClick={() => {
-                try { localStorage.setItem("active_tab", "block"); } catch {}
+                try {
+                  localStorage.setItem("active_tab", "block");
+                } catch {}
                 try {
                   window.dispatchEvent(
                     new CustomEvent("nav:tab", { detail: "block" as const })
@@ -361,7 +341,6 @@ export const HomeTab: React.FC = () => {
               Yes
             </Button>
 
-            {/* NO -> tiếp tục chọn cycle */}
             <Button
               variant="destructive"
               className="flex-1"
@@ -376,7 +355,6 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Welcome dialog khi mới vào trang (1 nút, ẩn dấu ✕) */}
       <Dialog
         open={showWelcome}
         onOpenChange={(open) => !open && setShowWelcome(false)}
@@ -411,7 +389,6 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Pet unlock modal (sau break mới hiện) */}
       <PetUnlockModal
         pet={unlockedPet}
         isOpen={!!unlockedPet}
@@ -419,7 +396,6 @@ export const HomeTab: React.FC = () => {
         onSetAsCompanion={setAsCompanion}
         isUnlocked={true}
       />
-      
     </div>
   );
 };
