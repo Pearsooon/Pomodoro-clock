@@ -16,6 +16,7 @@ import { usePetCollection } from "@/hooks/usePetCollection";
 import { cn } from "@/lib/utils";
 import type { Pet } from "@/types/pet";
 import { PETS } from "@/data/pets";
+import { Badge } from "@/components/ui/badge";
 
 const EVENT_PET_UNLOCKED = "pet:unlocked";
 
@@ -59,7 +60,6 @@ function hasAnyBlockedApps(): boolean {
         val = JSON.parse(raw);
       } catch {
         if (raw.trim().length > 0) return true;
-        continue;
       }
 
       if (Array.isArray(val) && val.length > 0) return true;
@@ -98,7 +98,7 @@ export const HomeTab: React.FC = () => {
     isBreakMode,
     currentCycle,
     totalCycles,
-    phase,            // 'idle' | 'work' | 'break' | 'completed'
+    phase, // 'idle' | 'work' | 'break' | 'completed'
     startTimer,
     stopTimer,
     setWorkMinutes,
@@ -193,6 +193,22 @@ export const HomeTab: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-6 space-y-8">
+      {/* ---------- Header giống Pet Gallery ---------- */}
+      <div className="text-center">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Focus Timer</h1>
+        <p className="text-muted-foreground">
+          Complete Pomodoro cycles to unlock pets
+        </p>
+        {currentCompanion && (
+          <div className="mt-2">
+            <Badge variant="secondary" className="bg-primary/10 text-primary">
+              Current: {currentCompanion.name}
+            </Badge>
+          </div>
+        )}
+      </div>
+      {/* --------------------------------------------- */}
+
       <Card
         className={cn(
           "p-8 w-full max-w-sm transition-all duration-500 shadow-lg",
@@ -346,7 +362,13 @@ export const HomeTab: React.FC = () => {
             <p className="text-sm text-muted-foreground">
               Start focusing with Focus Buddy and earn more pets!
             </p>
-            <Button onClick={() => { setAsCompanion("focus-buddy"); setShowWelcome(false); }} className="w-full">
+            <Button
+              onClick={() => {
+                setAsCompanion("focus-buddy");
+                setShowWelcome(false);
+              }}
+              className="w-full"
+            >
               Let&apos;s go
             </Button>
           </div>
