@@ -29,14 +29,14 @@ export const CycleModal: React.FC<CycleModalProps> = ({
             How many pomodoro cycles would you like to run?
           </DialogTitle>
         </DialogHeader>
-        
+
         <div className="py-6 space-y-6">
           <div className="text-center">
             <div className="text-3xl font-bold text-primary mb-2">
               {cycles[0]} {cycles[0] === 1 ? 'cycle' : 'cycles'}
             </div>
           </div>
-          
+
           <div className="px-4">
             <Slider
               value={cycles}
@@ -45,14 +45,29 @@ export const CycleModal: React.FC<CycleModalProps> = ({
               max={10}
               step={1}
               className="w-full"
+              aria-label="Select number of cycles"
             />
-            <div className="flex justify-between text-sm text-muted-foreground mt-2">
-              <span>1</span>
-              <span>10</span>
+
+            {/* Vạch chia 1–10 ngay dưới slider */}
+            <div className="mt-3">
+              {/* thanh tick */}
+              <div className="grid grid-cols-10 gap-0 px-1">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="flex justify-center">
+                    <div className="w-0.5 h-2 bg-muted rounded-full" />
+                  </div>
+                ))}
+              </div>
+              {/* nhãn số */}
+              <div className="grid grid-cols-10 text-[10px] text-muted-foreground mt-1">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div key={i} className="text-center">{i + 1}</div>
+                ))}
+              </div>
             </div>
           </div>
-          
-          <Button 
+
+          <Button
             onClick={handleContinue}
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
           >

@@ -4,6 +4,7 @@ import { usePetCollection } from "@/hooks/usePetCollection";
 import { PETS } from "@/data/pets";
 
 const SETTINGS_KEY = "appSettings";
+const TOAST_DURATION = 5000; // ⬅️ auto-dismiss sau 5s cho mọi toast
 
 export interface PomodoroState {
   minutes: number;
@@ -89,6 +90,7 @@ export const usePomodoro = () => {
       toast({
         title: "Focus time started! 🍅",
         description: `Beginning cycle 1 of ${Math.max(1, cycles)}`,
+        duration: TOAST_DURATION,
       });
     },
     [toast]
@@ -117,6 +119,7 @@ export const usePomodoro = () => {
     toast({
       title: "Session stopped",
       description: "Data will not be saved",
+      duration: TOAST_DURATION,
     });
   }, [toast]);
 
@@ -165,6 +168,7 @@ export const usePomodoro = () => {
                   title: "🎉 All cycles completed!",
                   description:
                     "Great work! You've finished your Pomodoro session.",
+                  duration: TOAST_DURATION,
                 });
                 return {
                   ...prev,
@@ -180,6 +184,7 @@ export const usePomodoro = () => {
               toast({
                 title: `Starting cycle ${nextCycle} 🍅`,
                 description: `Focus time for cycle ${nextCycle} of ${prev.totalCycles}`,
+                duration: TOAST_DURATION,
               });
               return {
                 ...prev,
@@ -196,6 +201,7 @@ export const usePomodoro = () => {
             toast({
               title: "Break time! 😴",
               description: `Take a ${b}-minute break`,
+              duration: TOAST_DURATION,
             });
             return {
               ...prev,
@@ -216,6 +222,7 @@ export const usePomodoro = () => {
                 title: "🎉 All cycles completed!",
                 description:
                   "Great work! You've finished your Pomodoro session.",
+                duration: TOAST_DURATION,
               });
               return {
                 ...prev,
@@ -231,6 +238,7 @@ export const usePomodoro = () => {
             toast({
               title: `Starting cycle ${nextCycle} 🍅`,
               description: `Focus time for cycle ${nextCycle} of ${prev.totalCycles}`,
+              duration: TOAST_DURATION,
             });
             return {
               ...prev,
