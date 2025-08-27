@@ -28,11 +28,6 @@ export const PetCard: React.FC<PetCardProps> = ({
     if (isUnlocked) setIsFlipped((v) => !v);
   };
 
-  const flipToFront = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    setIsFlipped(false);
-  };
-
   return (
     <div className="relative w-full h-48 perspective-1000">
       <div
@@ -57,7 +52,6 @@ export const PetCard: React.FC<PetCardProps> = ({
               <Lock className="w-4 h-4 text-muted-foreground" />
             </div>
           )}
-
           {isCompanion && isUnlocked && (
             <div className="absolute top-2 right-2 bg-success rounded-full p-1">
               <Check className="w-3 h-3 text-success-foreground" />
@@ -88,7 +82,7 @@ export const PetCard: React.FC<PetCardProps> = ({
             </div>
           )}
 
-          {/* HINT: luôn hiện khi ở mặt trước */}
+          {/* HINT: luôn hiện ở mặt trước */}
           {isUnlocked && !isFlipped && (
             <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-2">
               <div className="px-2 py-1 rounded-full bg-black/45 text-white text-[10px] leading-none">
@@ -125,23 +119,25 @@ export const PetCard: React.FC<PetCardProps> = ({
             </div>
           )}
 
-          <div className="mt-auto grid grid-cols-2 gap-2">
-            <Button
-              variant={isCompanion ? "secondary" : "default"}
-              size="sm"
-              className="text-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSetAsCompanion(pet.id);
-              }}
-              disabled={isCompanion}
-            >
-              {isCompanion ? "Current Companion" : "Set as Companion"}
-            </Button>
+          {/* Chỉ còn 1 nút – không có Back */}
+          <Button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSetAsCompanion(pet.id);
+            }}
+            variant={isCompanion ? "secondary" : "default"}
+            size="sm"
+            className="w-full text-xs mt-auto"
+            disabled={isCompanion}
+          >
+            {isCompanion ? "Current Companion" : "Set as Companion"}
+          </Button>
 
-            <Button variant="outline" size="sm" className="text-xs" onClick={flipToFront}>
-              Back
-            </Button>
+          {/* HINT: “Tap to back” ở mặt sau */}
+          <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-2">
+            <div className="px-2 py-1 rounded-full bg-black/45 text-white text-[10px] leading-none">
+              Tap to back
+            </div>
           </div>
         </Card>
       </div>
