@@ -89,21 +89,19 @@ export const PetCard: React.FC<PetCardProps> = ({
           </p>
 
           <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSetAsCompanion(pet.id);
-            }}
+            onClick={(e) => { e.stopPropagation(); onSetAsCompanion(pet.id); }}
             variant={isCompanion ? "secondary" : "default"}
             disabled={isCompanion}
             className={cn(
-              // kích thước + căn hàng chữ để không “tràn” nền
-              "w-full h-10 sm:h-11 px-4 text-sm sm:text-[12px] leading-none font-semibold rounded-lg",
-              "whitespace-nowrap overflow-hidden",
+              "w-full h-11 sm:h-12 px-5 rounded-lg font-semibold",
+              "text-sm sm:text-[15px] leading-none text-center",
+              "whitespace-nowrap overflow-hidden", // giữ 1 dòng, không tràn
               isCompanion && "bg-secondary text-secondary-foreground"
             )}
           >
             {isCompanion ? "Current Companion" : "Set as Companion"}
           </Button>
+
         </Card>
       </div>
     </div>
