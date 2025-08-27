@@ -199,13 +199,6 @@ export const HomeTab: React.FC = () => {
         <p className="text-muted-foreground">
           Complete Pomodoro cycles to unlock pets
         </p>
-        {currentCompanion && (
-          <div className="mt-2">
-            <Badge variant="secondary" className="bg-primary/10 text-primary">
-              Current: {currentCompanion.name}
-            </Badge>
-          </div>
-        )}
       </div>
       {/* --------------------------------------------- */}
 
