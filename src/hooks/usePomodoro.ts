@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { usePetCollection } from "@/hooks/usePetCollection";
+import { PETS } from "@/data/pets";
 
 const SETTINGS_KEY = "appSettings";
 
@@ -28,7 +30,7 @@ function readBreakLen(): number {
     const parsed = JSON.parse(raw);
     const v = Number(parsed?.shortBreakLength);
     if (!Number.isFinite(v)) return 5;
-    return Math.min(60, Math.max(0, v)); // ⬅️ cho phép 0
+    return Math.min(60, Math.max(0, v)); // cho phép 0
   } catch {
     return 5;
   }
@@ -36,8 +38,13 @@ function readBreakLen(): number {
 
 export const usePomodoro = () => {
   const { toast } = useToast();
+  const { unlockPet, isPetUnlocked } = usePetCollection();
+
   // trong trình duyệt setInterval trả về number
   const intervalRef = useRef<number | null>(null);
+
+  // đảm bảo chỉ phát pet 1 lần cho mỗi phiên hoàn tất
+  const grantedThisSessionRef = useRef(false);
 
   const [state, setState] = useState<PomodoroState>({
     minutes: 25,
@@ -63,6 +70,7 @@ export const usePomodoro = () => {
   const startTimer = useCallback(
     (cycles: number, workMinutes: number) => {
       const breakLen = readBreakLen();
+      grantedThisSessionRef.current = false; // reset flag
 
       setState((prev) => ({
         ...prev,
@@ -92,6 +100,9 @@ export const usePomodoro = () => {
       intervalRef.current = null;
     }
 
+    // stop giữa chừng => KHÔNG phát pet
+    grantedThisSessionRef.current = false;
+
     setState((prev) => ({
       ...prev,
       isRunning: false,
@@ -119,6 +130,19 @@ export const usePomodoro = () => {
     }));
   }, []);
 
+  // Helper: phát ngẫu nhiên 1 pet chưa sở hữu (dùng cho demo, luôn có quà sau khi hoàn tất)
+  const grantOneRandomPet = useCallback(() => {
+    if (grantedThisSessionRef.current) return;
+    const eligible = PETS.filter((p) => !isPetUnlocked(p.id));
+    if (eligible.length === 0) {
+      grantedThisSessionRef.current = true;
+      return;
+    }
+    const pick = eligible[Math.floor(Math.random() * eligible.length)];
+    unlockPet(pick.id);
+    grantedThisSessionRef.current = true;
+  }, [isPetUnlocked, unlockPet]);
+
   // Timer countdown + chuyển phase (hỗ trợ break = 0)
   useEffect(() => {
     if (!state.isRunning) return;
@@ -134,6 +158,9 @@ export const usePomodoro = () => {
             if (b <= 0) {
               const isLast = prev.currentCycle >= prev.totalCycles;
               if (isLast) {
+                // ✅ Hoàn tất toàn bộ cycles: phát pet ở đây
+                grantOneRandomPet();
+
                 toast({
                   title: "🎉 All cycles completed!",
                   description:
@@ -182,6 +209,9 @@ export const usePomodoro = () => {
             // Kết thúc BREAK
             const isLast = prev.currentCycle >= prev.totalCycles;
             if (isLast) {
+              // ✅ Hoàn tất toàn bộ cycles: phát pet ở đây
+              grantOneRandomPet();
+
               toast({
                 title: "🎉 All cycles completed!",
                 description:
@@ -228,7 +258,7 @@ export const usePomodoro = () => {
         intervalRef.current = null;
       }
     };
-  }, [state.isRunning, toast]);
+  }, [state.isRunning, toast, grantOneRandomPet]);
 
   return {
     ...state,

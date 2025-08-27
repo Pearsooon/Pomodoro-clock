@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,8 +88,7 @@ export const HomeTab: React.FC = () => {
   // Welcome
   const [showWelcome, setShowWelcome] = useState(false);
 
-  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion } =
-    usePetCollection();
+  const { currentCompanion, setAsCompanion } = usePetCollection();
 
   const {
     minutes,
@@ -103,7 +102,6 @@ export const HomeTab: React.FC = () => {
     startTimer,
     stopTimer,
     setWorkMinutes,
-    workLength,       // ⬅️ LẤY THÊM
   } = usePomodoro();
 
   const focusBuddy = useMemo(
@@ -169,34 +167,6 @@ export const HomeTab: React.FC = () => {
     setAsCompanion("focus-buddy");
     setShowWelcome(false);
   };
-
-  // ✅ Chỉ phát pet khi HOÀN THÀNH TẤT CẢ CYCLES
-  const prevPhase = useRef(phase);
-  useEffect(() => {
-    const sessionCompleted = phase === "completed" && prevPhase.current !== "completed";
-
-    if (sessionCompleted) {
-      const cyclesDone = totalCycles;
-      const currentStreak = 0;
-      const focusMinutes = workLength * totalCycles; // ⬅️ dùng workLength cho chính xác
-      const level = 1;
-
-      checkForNewPetUnlocks({
-        totalCycles: cyclesDone,
-        currentStreak,
-        totalFocusMinutes: focusMinutes,
-        level,
-      });
-
-    }
-
-    prevPhase.current = phase;
-  }, [
-    phase,
-    totalCycles,
-    workLength,                // ⬅️ thêm vào deps
-    checkForNewPetUnlocks,,
-  ]);
 
   // Mở modal pet nếu không ở break
   useEffect(() => {
@@ -376,7 +346,7 @@ export const HomeTab: React.FC = () => {
             <p className="text-sm text-muted-foreground">
               Start focusing with Focus Buddy and earn more pets!
             </p>
-            <Button onClick={letsGo} className="w-full">
+            <Button onClick={() => { setAsCompanion("focus-buddy"); setShowWelcome(false); }} className="w-full">
               Let&apos;s go
             </Button>
           </div>
