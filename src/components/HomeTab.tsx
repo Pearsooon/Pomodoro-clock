@@ -88,7 +88,7 @@ export const HomeTab: React.FC = () => {
   // Welcome
   const [showWelcome, setShowWelcome] = useState(false);
 
-  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
+  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion } =
     usePetCollection();
 
   const {
@@ -99,10 +99,11 @@ export const HomeTab: React.FC = () => {
     isBreakMode,
     currentCycle,
     totalCycles,
-    phase, // 'idle' | 'work' | 'break' | 'completed'
+    phase,            // 'idle' | 'work' | 'break' | 'completed'
     startTimer,
     stopTimer,
     setWorkMinutes,
+    workLength,       // ⬅️ LẤY THÊM
   } = usePomodoro();
 
   const focusBuddy = useMemo(
@@ -169,17 +170,15 @@ export const HomeTab: React.FC = () => {
     setShowWelcome(false);
   };
 
-  // ✅ Chỉ phát pet & (tuỳ chọn) cộng XP khi HOÀN THÀNH TẤT CẢ CYCLES
+  // ✅ Chỉ phát pet khi HOÀN THÀNH TẤT CẢ CYCLES
   const prevPhase = useRef(phase);
   useEffect(() => {
-    const sessionCompleted =
-      prevPhase.current === "break" && phase === "completed";
+    const sessionCompleted = phase === "completed" && prevPhase.current !== "completed";
 
     if (sessionCompleted) {
-      // bạn có thể tinh chỉnh các tham số theo rule của bạn
       const cyclesDone = totalCycles;
       const currentStreak = 0;
-      const focusMinutes = totalCycles * totalMinutes; // workLength * totalCycles
+      const focusMinutes = workLength * totalCycles; // ⬅️ dùng workLength cho chính xác
       const level = 1;
 
       checkForNewPetUnlocks({
@@ -189,19 +188,14 @@ export const HomeTab: React.FC = () => {
         level,
       });
 
-      // Nếu vẫn muốn giữ XP: cộng sau khi hoàn thành toàn bộ session
-      try {
-        awardSessionXP(totalMinutes, totalCycles);
-      } catch {}
     }
 
     prevPhase.current = phase;
   }, [
     phase,
     totalCycles,
-    totalMinutes,
-    checkForNewPetUnlocks,
-    awardSessionXP,
+    workLength,                // ⬅️ thêm vào deps
+    checkForNewPetUnlocks,,
   ]);
 
   // Mở modal pet nếu không ở break
