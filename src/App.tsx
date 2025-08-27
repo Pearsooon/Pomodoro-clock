@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-// 🔒 Import trực tiếp, dùng đường dẫn tương đối để khỏi phụ thuộc alias
 import StatsTab from "./components/StatsTab";
 import SettingsTab from "./components/SettingsTab";
 
