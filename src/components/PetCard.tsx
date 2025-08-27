@@ -82,9 +82,9 @@ export const PetCard: React.FC<PetCardProps> = ({
             </div>
           )}
 
-          {/* HINT: luôn hiện ở mặt trước */}
+          {/* HINT front */}
           {isUnlocked && !isFlipped && (
-            <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-2">
+            <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
               <div className="px-2 py-1 rounded-full bg-black/45 text-white text-[10px] leading-none">
                 Tap for details
               </div>
@@ -95,7 +95,8 @@ export const PetCard: React.FC<PetCardProps> = ({
         {/* BACK (Details) */}
         <Card
           className={cn(
-            "absolute inset-0 w-full h-full backface-hidden rotate-y-180 border-2 p-4 flex flex-col",
+            "absolute inset-0 w-full h-full backface-hidden rotate-y-180 border-2 p-4 flex flex-col relative",
+            "pb-10", // chừa đáy cho bubble hint
             rarityStyle.border
           )}
         >
@@ -109,7 +110,7 @@ export const PetCard: React.FC<PetCardProps> = ({
             </Badge>
           </div>
 
-          <p className="text-xs text-muted-foreground mb-3 flex-1">
+          <p className="text-xs text-muted-foreground mb-3">
             {pet.description}
           </p>
 
@@ -119,22 +120,22 @@ export const PetCard: React.FC<PetCardProps> = ({
             </div>
           )}
 
-          {/* Chỉ còn 1 nút – không có Back */}
+          {/* MOVE BUTTON UP: để không trùng bubble “Tap to back” */}
           <Button
             onClick={(e) => {
-              e.stopPropagation();
+              e.stopPropagation(); // không lật thẻ khi bấm nút
               onSetAsCompanion(pet.id);
             }}
             variant={isCompanion ? "secondary" : "default"}
             size="sm"
-            className="w-full text-xs mt-auto"
+            className="w-full text-xs mb-9" // đẩy lên và tạo khoảng cách với bubble
             disabled={isCompanion}
           >
             {isCompanion ? "Current Companion" : "Set as Companion"}
           </Button>
 
-          {/* HINT: “Tap to back” ở mặt sau */}
-          <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-2">
+          {/* HINT back */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
             <div className="px-2 py-1 rounded-full bg-black/45 text-white text-[10px] leading-none">
               Tap to back
             </div>
