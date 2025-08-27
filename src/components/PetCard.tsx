@@ -97,7 +97,7 @@ export const PetCard: React.FC<PetCardProps> = ({
             disabled={isCompanion}
             className={cn(
               // kích thước + căn hàng chữ để không “tràn” nền
-              "w-full h-10 sm:h-11 px-4 text-sm sm:text-[15px] leading-none font-semibold rounded-lg",
+              "w-full h-10 sm:h-11 px-4 text-sm sm:text-[12px] leading-none font-semibold rounded-lg",
               "whitespace-nowrap overflow-hidden",
               isCompanion && "bg-secondary text-secondary-foreground"
             )}
