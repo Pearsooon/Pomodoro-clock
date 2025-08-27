@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter as FilterIcon, Lock } from "lucide-react";
+import { Search, Filter as FilterIcon, Lock, HelpCircle, X } from "lucide-react";
 import { PetCard } from "@/components/PetCard";
 import { Pet, PetRarity } from "@/types/pet";
 import { PETS } from "@/data/pets";
@@ -10,7 +10,6 @@ import { usePetCollection } from "@/hooks/usePetCollection";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -34,7 +33,14 @@ export const PetGallery: React.FC = () => {
   const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("none");
 
-  // ❌ bỏ getPetProgress (không còn XP)
+  // Tip hướng dẫn (global, không theo từng card)
+  const [showHelpTip, setShowHelpTip] = useState(false);
+  useEffect(() => {
+    if (!showHelpTip) return;
+    const t = setTimeout(() => setShowHelpTip(false), 5000);
+    return () => clearTimeout(t);
+  }, [showHelpTip]);
+
   const { userPets, isPetUnlocked, setAsCompanion } = usePetCollection();
 
   const filteredPets = useMemo(() => {
@@ -71,9 +77,9 @@ export const PetGallery: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="text-center">
+    <div className="space-y-4 relative">
+      {/* Header + nút “?” góc phải */}
+      <div className="relative text-center">
         <h2 className="text-xl font-bold text-foreground mb-2">Pet Gallery</h2>
         <p className="text-sm text-muted-foreground">
           Collect pets by completing Pomodoro sessions
@@ -85,7 +91,52 @@ export const PetGallery: React.FC = () => {
             </Badge>
           </div>
         )}
+
+        {/* Help button top-right (cùng dòng tiêu đề) */}
+        <div className="absolute right-0 top-0">
+          <button
+            type="button"
+            aria-label="Help: how to view details"
+            onClick={() => setShowHelpTip(true)}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-muted-foreground/40 bg-background/80 backdrop-blur hover:bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
+        </div>
       </div>
+
+      {/* Tip nổi (global) – auto-dismiss 5s */}
+      {showHelpTip && (
+        <div
+          className="
+            fixed z-[60]
+            right-3 top-[calc(env(safe-area-inset-top,0px)+12px)]
+            w-[88vw] max-w-sm
+            rounded-lg border bg-card/95 text-card-foreground
+            shadow-md backdrop-blur supports-[backdrop-filter]:bg-card/80
+            sm:right-6 sm:top-6 sm:w-96 sm:max-w-none sm:shadow-xl
+          "
+        >
+          <div className="flex items-start p-3 sm:p-4">
+            <div className="flex-1 text-sm sm:text-base">
+              <b>How to view: </b>
+              Tap for details and tap again to back
+            </div>
+            <button
+              aria-label="Dismiss tip"
+              onClick={() => setShowHelpTip(false)}
+              className="
+                ml-2 sm:ml-3 inline-flex items-center justify-center
+                w-8 h-8 sm:w-9 sm:h-9 rounded-full
+                opacity-100 active:scale-95 transition
+                focus:outline-none focus:ring-2 focus:ring-primary
+              "
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search + Filter button */}
       <div className="flex gap-2 items-center">
