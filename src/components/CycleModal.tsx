@@ -54,18 +54,19 @@ export const CycleModal: React.FC<CycleModalProps> = ({
               <div className="grid grid-cols-10 gap-0 px-1">
                 {Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="flex justify-center">
-                    <div className="w-0.5 h-2 bg-muted rounded-full" />
+                    {/* dày & tối hơn: rộng 2px, cao 12px, màu border đậm */}
+                    <div className="w-[2px] h-3 bg-border opacity-90 rounded-full" />
                   </div>
                 ))}
               </div>
               {/* nhãn số */}
-              <div className="grid grid-cols-10 text-[10px] text-muted-foreground mt-1">
+              <div className="grid grid-cols-10 text-[11px] text-foreground/70 mt-1">
                 {Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="text-center">{i + 1}</div>
                 ))}
               </div>
             </div>
-          </div>
+
 
           <Button
             onClick={handleContinue}

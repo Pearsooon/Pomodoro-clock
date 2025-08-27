@@ -30,7 +30,7 @@ export const PetCard: React.FC<PetCardProps> = ({
     <div className="relative w-full h-48 perspective-1000">
       <div
         className={cn(
-          "relative w-full h-full duration-700 transform-style-preserve-3d cursor-pointer",
+          "relative w-full h-full duration-700 transform-style-preserve-3d cursor-pointer will-change-transform",
           isFlipped && "rotate-y-180"
         )}
         onClick={handleCardClick}
@@ -76,7 +76,7 @@ export const PetCard: React.FC<PetCardProps> = ({
         {/* Back (DETAIL) – không hiển thị rarity */}
         <Card
           className={cn(
-            "absolute inset-0 w-full h-full backface-hidden rotate-y-180 border-2 p-4 flex flex-col",
+            "absolute inset-0 w-full h-full backface-hidden rotate-y-180 border-2 p-4 pb-5 flex flex-col",
             rarityStyle.border
           )}
         >
@@ -93,14 +93,14 @@ export const PetCard: React.FC<PetCardProps> = ({
               e.stopPropagation();
               onSetAsCompanion(pet.id);
             }}
-            // tăng kích cỡ nhưng vẫn nằm trong card
-            size="default"
-            className={cn(
-              "w-full font-medium",
-              isCompanion ? "bg-secondary text-secondary-foreground" : ""
-            )}
             variant={isCompanion ? "secondary" : "default"}
             disabled={isCompanion}
+            className={cn(
+              // kích thước + căn hàng chữ để không “tràn” nền
+              "w-full h-10 sm:h-11 px-4 text-sm sm:text-[15px] leading-none font-semibold rounded-lg",
+              "whitespace-nowrap overflow-hidden",
+              isCompanion && "bg-secondary text-secondary-foreground"
+            )}
           >
             {isCompanion ? "Current Companion" : "Set as Companion"}
           </Button>
