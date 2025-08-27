@@ -6,8 +6,11 @@ const SETTINGS_KEY = "appSettings";
 export interface PomodoroState {
   minutes: number;
   seconds: number;
-  totalMinutes: number;     // tổng phút của PHASE hiện tại
-  workLength: number;       // độ dài work cố định trong phiên
+  /** tổng phút của PHASE hiện tại (work/break) */
+  totalMinutes: number;
+  /** độ dài work cố định trong phiên */
+  workLength: number;
+  /** độ dài break (có thể = 0 để bỏ break) */
   breakLength: number;
 
   isRunning: boolean;
@@ -17,7 +20,7 @@ export interface PomodoroState {
   phase: "idle" | "work" | "break" | "completed";
 }
 
-/** đọc Break (min) từ localStorage Settings */
+/** Đọc break (phút) từ Settings; cho phép 0 */
 function readBreakLen(): number {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -31,10 +34,10 @@ function readBreakLen(): number {
   }
 }
 
-
 export const usePomodoro = () => {
   const { toast } = useToast();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  // trong trình duyệt setInterval trả về number
+  const intervalRef = useRef<number | null>(null);
 
   const [state, setState] = useState<PomodoroState>({
     minutes: 25,
@@ -84,7 +87,7 @@ export const usePomodoro = () => {
   );
 
   const stopTimer = useCallback(() => {
-    if (intervalRef.current) {
+    if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
@@ -106,6 +109,7 @@ export const usePomodoro = () => {
     });
   }, [toast]);
 
+  // cho phép đổi work length khi chưa chạy
   const setWorkMinutes = useCallback((m: number) => {
     setState((prev) => ({
       ...prev,
@@ -115,24 +119,78 @@ export const usePomodoro = () => {
     }));
   }, []);
 
-  // Timer countdown + chuyển phase
+  // Timer countdown + chuyển phase (hỗ trợ break = 0)
   useEffect(() => {
     if (!state.isRunning) return;
 
-    intervalRef.current = setInterval(() => {
+    intervalRef.current = window.setInterval(() => {
       setState((prev) => {
-        if (prev.phase === 'work') {
-          const b = prev.breakLength; // không dùng "|| 5" nữa
+        // Hết thời gian của phase hiện tại?
+        if (prev.minutes === 0 && prev.seconds === 0) {
+          if (prev.phase === "work") {
+            const b = prev.breakLength; // KHÔNG dùng "|| 5"
 
-          // ⬅️ nếu b = 0, bỏ qua break, nhảy tiếp
-          if (b <= 0) {
+            // Nếu không có break → nhảy thẳng
+            if (b <= 0) {
+              const isLast = prev.currentCycle >= prev.totalCycles;
+              if (isLast) {
+                toast({
+                  title: "🎉 All cycles completed!",
+                  description:
+                    "Great work! You've finished your Pomodoro session.",
+                });
+                return {
+                  ...prev,
+                  isRunning: false,
+                  phase: "completed",
+                  isBreakMode: false,
+                  minutes: prev.workLength,
+                  seconds: 0,
+                  totalMinutes: prev.workLength,
+                };
+              }
+              const nextCycle = prev.currentCycle + 1;
+              toast({
+                title: `Starting cycle ${nextCycle} 🍅`,
+                description: `Focus time for cycle ${nextCycle} of ${prev.totalCycles}`,
+              });
+              return {
+                ...prev,
+                phase: "work",
+                isBreakMode: false,
+                currentCycle: nextCycle,
+                minutes: prev.workLength,
+                seconds: 0,
+                totalMinutes: prev.workLength,
+              };
+            }
+
+            // Có break → vào break
+            toast({
+              title: "Break time! 😴",
+              description: `Take a ${b}-minute break`,
+            });
+            return {
+              ...prev,
+              phase: "break",
+              isBreakMode: true,
+              minutes: b,
+              seconds: 0,
+              totalMinutes: b,
+            };
+          } else {
+            // Kết thúc BREAK
             const isLast = prev.currentCycle >= prev.totalCycles;
             if (isLast) {
-              toast({ title: '🎉 All cycles completed!', description: "Great work! You've finished your Pomodoro session." });
+              toast({
+                title: "🎉 All cycles completed!",
+                description:
+                  "Great work! You've finished your Pomodoro session.",
+              });
               return {
                 ...prev,
                 isRunning: false,
-                phase: 'completed',
+                phase: "completed",
                 isBreakMode: false,
                 minutes: prev.workLength,
                 seconds: 0,
@@ -140,10 +198,13 @@ export const usePomodoro = () => {
               };
             }
             const nextCycle = prev.currentCycle + 1;
-            toast({ title: `Starting cycle ${nextCycle} 🍅`, description: `Focus time for cycle ${nextCycle} of ${prev.totalCycles}` });
+            toast({
+              title: `Starting cycle ${nextCycle} 🍅`,
+              description: `Focus time for cycle ${nextCycle} of ${prev.totalCycles}`,
+            });
             return {
               ...prev,
-              phase: 'work',
+              phase: "work",
               isBreakMode: false,
               currentCycle: nextCycle,
               minutes: prev.workLength,
@@ -151,22 +212,18 @@ export const usePomodoro = () => {
               totalMinutes: prev.workLength,
             };
           }
-
-          // b > 0: vào break như cũ
-          toast({ title: 'Break time! 😴', description: `Take a ${b}-minute break` });
-          return {
-            ...prev,
-            phase: 'break',
-            isBreakMode: true,
-            minutes: b,
-            seconds: 0,
-            totalMinutes: b,
-          };
         }
+
+        // Vẫn đang đếm
+        if (prev.seconds === 0) {
+          return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
+        }
+        return { ...prev, seconds: prev.seconds - 1 };
+      });
     }, 1000);
 
     return () => {
-      if (intervalRef.current) {
+      if (intervalRef.current !== null) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
