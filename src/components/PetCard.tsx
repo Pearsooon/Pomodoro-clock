@@ -69,6 +69,7 @@ export const PetCard: React.FC<PetCardProps> = ({
 
           <h3 className="font-semibold text-sm text-center mb-1">{pet.name}</h3>
 
+          {/* Rarity chỉ hiển thị ở mặt trước */}
           <Badge
             variant="secondary"
             className={cn(rarityStyle.bg, rarityStyle.text, "text-xs")}
@@ -82,7 +83,7 @@ export const PetCard: React.FC<PetCardProps> = ({
             </div>
           )}
 
-          {/* HINT front */}
+          {/* Hint front */}
           {isUnlocked && !isFlipped && (
             <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
               <div className="px-2 py-1 rounded-full bg-black/45 text-white text-[10px] leading-none">
@@ -96,23 +97,16 @@ export const PetCard: React.FC<PetCardProps> = ({
         <Card
           className={cn(
             "absolute inset-0 w-full h-full backface-hidden rotate-y-180 border-2 p-4 flex flex-col relative",
-            "pb-10", // chừa đáy cho bubble hint
+            "pb-10", // chừa đáy cho bubble
             rarityStyle.border
           )}
         >
-          <div className="flex items-start justify-between mb-2">
+          {/* BỎ badge rarity ở mặt sau để tránh đẩy nội dung xuống */}
+          <div className="mb-2">
             <h3 className="font-semibold text-sm">{pet.name}</h3>
-            <Badge
-              variant="secondary"
-              className={cn(rarityStyle.bg, rarityStyle.text, "text-xs")}
-            >
-              {pet.rarity}
-            </Badge>
           </div>
 
-          <p className="text-xs text-muted-foreground mb-3">
-            {pet.description}
-          </p>
+          <p className="text-xs text-muted-foreground mb-3">{pet.description}</p>
 
           {progress && (
             <div className="text-xs text-muted-foreground mb-3">
@@ -120,7 +114,6 @@ export const PetCard: React.FC<PetCardProps> = ({
             </div>
           )}
 
-          {/* MOVE BUTTON UP: để không trùng bubble “Tap to back” */}
           <Button
             onClick={(e) => {
               e.stopPropagation(); // không lật thẻ khi bấm nút
@@ -128,13 +121,13 @@ export const PetCard: React.FC<PetCardProps> = ({
             }}
             variant={isCompanion ? "secondary" : "default"}
             size="sm"
-            className="w-full text-xs mb-9" // đẩy lên và tạo khoảng cách với bubble
+            className="w-full text-xs mb-9" // đẩy nút lên trên bubble
             disabled={isCompanion}
           >
             {isCompanion ? "Current Companion" : "Set as Companion"}
           </Button>
 
-          {/* HINT back */}
+          {/* Hint back */}
           <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
             <div className="px-2 py-1 rounded-full bg-black/45 text-white text-[10px] leading-none">
               Tap to back
