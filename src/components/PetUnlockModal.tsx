@@ -11,7 +11,7 @@ interface PetUnlockModalProps {
   onClose: () => void;
   onSetAsCompanion?: (petId: string) => void;
   isUnlocked?: boolean;
-  /** 'unlock' = New Pet Unlocked!, 'welcome' = Meet ... Your first Pomodoro pet. */
+  /** 'unlock' = sau session rớt pet, 'welcome' = lần đầu vào app */
   mode?: 'unlock' | 'welcome';
 }
 
@@ -103,16 +103,38 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             </>
           )}
 
-          {/* Single primary button */}
-          <Button
-            onClick={() => {
-              onSetAsCompanion?.(pet.id);
-              onClose();
-            }}
-            className="w-full bg-[#FF6D53] hover:bg-[#FF6D53]/90 text-white"
-          >
-            Let&apos;s go
-          </Button>
+          {mode === 'welcome' ? (
+            // Giữ một nút duy nhất cho màn welcome
+            <Button
+              onClick={() => {
+                onSetAsCompanion?.(pet.id);
+                onClose();
+              }}
+              className="w-full bg-[#FF6D53] hover:bg-[#FF6D53]/90 text-white"
+            >
+              Let&apos;s go
+            </Button>
+          ) : (
+            // Sau session: 2 nút, "Set as Companion" ở bên trái nền cam
+            <div className="flex gap-3 mt-6">
+              <Button
+                onClick={() => {
+                  onSetAsCompanion?.(pet.id);
+                  onClose();
+                }}
+                className="flex-1 bg-[#FF6D53] hover:bg-[#FF6D53]/90 text-white"
+              >
+                Set as Companion
+              </Button>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="flex-1"
+              >
+                View later
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
