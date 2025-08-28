@@ -119,8 +119,9 @@ export const PetGallery: React.FC = () => {
         >
           <div className="flex items-start p-3 sm:p-4">
             <div className="flex-1 text-sm sm:text-base">
-              <b>How to view: </b>
-              Tap for details and tap again to back
+              <b>Tip: </b>
+              Tap a pet card to flip and view details.
+              <br>Use button <b>Set as Companion</b> to make it your buddy. Tap again to return.</br>
             </div>
             <button
               aria-label="Dismiss tip"

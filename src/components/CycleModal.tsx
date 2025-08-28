@@ -45,28 +45,35 @@ export const CycleModal: React.FC<CycleModalProps> = ({
               max={10}
               step={1}
               className="w-full"
-              aria-label="Select number of cycles"
             />
 
-            {/* Vạch chia 1–10 ngay dưới slider */}
+            {/* Vạch chia 1–10 (căn thẳng với track) */}
             <div className="mt-3">
               {/* thanh tick */}
-              <div className="grid grid-cols-10 gap-0 px-1">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div key={i} className="flex justify-center">
-                    <div className="w-[2px] h-3 bg-border opacity-90 rounded-full" />
-                  </div>
-                ))}
+              <div className="grid grid-cols-10 gap-0">
+                {Array.from({ length: 10 }).map((_, i) => {
+                  const major = i === 0 || i === 4 || i === 9; // 1,5,10 đậm hơn
+                  return (
+                    <div key={i} className="flex justify-center">
+                      <div
+                        className={
+                          major
+                            ? "w-[3px] h-3.5 bg-border opacity-95 rounded-full"
+                            : "w-[2px] h-3 bg-border opacity-90 rounded-full"
+                        }
+                      />
+                    </div>
+                  );
+                })}
               </div>
               {/* nhãn số */}
-              <div className="grid grid-cols-10 text-[11px] text-muted-foreground mt-1">
+              <div className="grid grid-cols-10 text-[11px] text-foreground/70 mt-1">
                 {Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="text-center">{i + 1}</div>
                 ))}
               </div>
             </div>
           </div>
-
           <Button
             onClick={handleContinue}
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
