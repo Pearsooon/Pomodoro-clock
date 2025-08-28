@@ -19,6 +19,7 @@ import { PETS } from "@/data/pets";
 import { Badge } from "@/components/ui/badge";
 
 const EVENT_PET_UNLOCKED = "pet:unlocked";
+const DEFAULT_PET_ID = "nobita";
 
 /** Kiểm tra đã block app nào chưa (quét rộng localStorage) */
 function hasAnyBlockedApps(): boolean {
@@ -35,6 +36,7 @@ function hasAnyBlockedApps(): boolean {
     ];
     const fields = ["apps", "blocked", "list", "items", "bundleIds", "services"];
 
+    // 1) Thử các key phổ biến
     for (const k of preferred) {
       const raw = localStorage.getItem(k);
       if (!raw) continue;
@@ -48,6 +50,7 @@ function hasAnyBlockedApps(): boolean {
       }
     }
 
+    // 2) Quét toàn bộ localStorage
     const re = /(block|notif|noti|mute|silenc)/i;
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i) ?? "";
@@ -60,6 +63,7 @@ function hasAnyBlockedApps(): boolean {
         val = JSON.parse(raw);
       } catch {
         if (raw.trim().length > 0) return true;
+        continue;
       }
 
       if (Array.isArray(val) && val.length > 0) return true;
@@ -88,7 +92,9 @@ export const HomeTab: React.FC = () => {
   // Welcome
   const [showWelcome, setShowWelcome] = useState(false);
 
-  const { currentCompanion, setAsCompanion } = usePetCollection();
+  // Lấy thêm API để seed pet mặc định
+  const { currentCompanion, setAsCompanion, isPetUnlocked, unlockPet } =
+    usePetCollection();
 
   const {
     minutes,
@@ -104,8 +110,9 @@ export const HomeTab: React.FC = () => {
     setWorkMinutes,
   } = usePomodoro();
 
-  const focusBuddy = useMemo(
-    () => PETS.find((p) => p.id === "focus-buddy") || null,
+  // Pet mặc định (Nobita) để dùng trong Welcome/ảnh
+  const defaultPet = useMemo(
+    () => PETS.find((p) => p.id === DEFAULT_PET_ID) || null,
     []
   );
 
@@ -152,7 +159,7 @@ export const HomeTab: React.FC = () => {
       );
   }, []);
 
-  // Welcome first visit
+  // Welcome first visit (chỉ hiện nếu chưa seed)
   useEffect(() => {
     const SEEN_KEY = "welcome_seen_v1";
     const seen =
@@ -163,10 +170,39 @@ export const HomeTab: React.FC = () => {
     }
   }, []);
 
-  const letsGo = () => {
-    setAsCompanion("focus-buddy");
-    setShowWelcome(false);
-  };
+  // ✅ Seed pet mặc định Nobita ở lần chạy đầu tiên
+  useEffect(() => {
+    const SEED_KEY = "default_pet_seeded_nobita_v1";
+    try {
+      const seeded = localStorage.getItem(SEED_KEY);
+
+      if (!seeded) {
+        // Unlock nếu chưa có (sẽ phát event -> modal tự hiện)
+        if (!isPetUnlocked(DEFAULT_PET_ID)) {
+          unlockPet(DEFAULT_PET_ID);
+        }
+        // Set companion để đồng hồ có ảnh ngay
+        if (!currentCompanion) {
+          setAsCompanion(DEFAULT_PET_ID);
+        }
+        // Ẩn Welcome (đã có pet mặc định)
+        localStorage.setItem("welcome_seen_v1", "1");
+        setShowWelcome(false);
+
+        localStorage.setItem(SEED_KEY, "1");
+      } else {
+        // Nếu đã seed từ trước nhưng chưa có companion, set lại
+        if (!currentCompanion) {
+          setAsCompanion(DEFAULT_PET_ID);
+        }
+      }
+    } catch {
+      // Fallback khi localStorage lỗi
+      if (!isPetUnlocked(DEFAULT_PET_ID)) unlockPet(DEFAULT_PET_ID);
+      if (!currentCompanion) setAsCompanion(DEFAULT_PET_ID);
+      setShowWelcome(false);
+    }
+  }, [currentCompanion, isPetUnlocked, unlockPet, setAsCompanion]);
 
   // Mở modal pet nếu không ở break
   useEffect(() => {
@@ -328,6 +364,7 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Welcome vẫn giữ — nhưng sẽ bị ẩn khi đã seed Nobita */}
       <Dialog
         open={showWelcome}
         onOpenChange={(open) => !open && setShowWelcome(false)}
@@ -339,25 +376,25 @@ export const HomeTab: React.FC = () => {
                 <div className="absolute inset-0 rounded-full animate-ping bg-blue-300/60" />
                 <div className="relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background border-blue-400">
                   <img
-                    src={focusBuddy?.image || currentCompanion?.image}
-                    alt="Focus Buddy"
+                    src={defaultPet?.image || currentCompanion?.image}
+                    alt={defaultPet?.name || "Your buddy"}
                     className="w-12 h-12 object-contain"
                   />
                 </div>
               </div>
             </div>
             <DialogTitle className="text-xl">
-              Meet Focus Buddy! Your first Pomodoro pet.
+              Meet {defaultPet?.name || "your buddy"}! Your first Pomodoro pet.
             </DialogTitle>
           </DialogHeader>
 
           <div className="text-center space-y-4">
             <p className="text-sm text-muted-foreground">
-              Start focusing with Focus Buddy and earn more pets!
+              Start focusing with {defaultPet?.name || "your buddy"} and earn more pets!
             </p>
             <Button
               onClick={() => {
-                setAsCompanion("focus-buddy");
+                setAsCompanion(DEFAULT_PET_ID);
                 setShowWelcome(false);
               }}
               className="w-full"
