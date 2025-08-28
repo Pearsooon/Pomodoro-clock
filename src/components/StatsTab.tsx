@@ -209,7 +209,7 @@ function BarHorizontal({
   );
 }
 
-/* ---------- Line Chart (bigger, only bottom ticks) ---------- */
+/* ---------- Line Chart (rotated bottom labels) ---------- */
 function SimpleLineChart({
   data,
   maxY,
@@ -217,47 +217,56 @@ function SimpleLineChart({
   data: { date: string; hours: number }[];
   maxY: number;
 }) {
-  // Kích thước lớn hơn
-  const W = 1200;
-  const H = 380;
-  const P = 50; // padding
-  const innerW = W - P * 2;
-  const innerH = H - P * 2;
+  // Responsive width for mobile/desktop (guard SSR)
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 600;
 
-  // Offset cho nhãn "Date" để tránh đụng tick cuối
-  const DATE_LABEL_X_OFFSET = +50; // âm = lệch trái thêm một chút
-  const DATE_LABEL_Y_OFFSET = +6;  // dương = xuống thấp hơn một chút
+  // Chart size
+  const W = isMobile ? 420 : 1200;
+  const H = isMobile ? 320 : 500;
+
+  // Separate paddings to have extra space at bottom for rotated labels
+  const PT = 40;          // top
+  const PR = 40;          // right
+  const PB = 80;          // bottom (extra for -45° labels)
+  const PL = isMobile ? 48 : 56; // left (room for Y labels)
+
+  const innerW = W - PL - PR;
+  const innerH = H - PT - PB;
 
   const points = data.map((d, i) => {
-    const x = P + (i * innerW) / (data.length - 1 || 1);
-    const y = P + innerH - (d.hours / maxY) * innerH;
+    const x = PL + (i * innerW) / (data.length - 1 || 1);
+    const y = PT + innerH - (d.hours / maxY) * innerH;
     return [x, y] as const;
   });
   const path = points.map(([x, y]) => `${x},${y}`).join(" ");
 
+  // Where to place axis labels
+  const axisX = PL;
+  const axisY = PT + innerH;
+
   return (
-    <div className="h-[420px]">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
+    <div className="w-full min-h-[320px] h-[500px]">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" className="w-full h-full">
         {/* Y grid + labels */}
         {Array.from({ length: 5 }).map((_, i) => {
           const ratio = i / 4;
-          const y = P + (1 - ratio) * innerH;
+          const y = PT + (1 - ratio) * innerH;
           const label = (maxY * ratio).toFixed(0) + "h";
           return (
             <g key={i}>
               <line
-                x1={P}
+                x1={PL}
                 y1={y}
-                x2={W - P}
+                x2={W - PR}
                 y2={y}
                 stroke="hsl(var(--border))"
                 strokeDasharray={i === 4 ? undefined : "3 3"}
               />
               <text
-                x={P - 8}
+                x={PL - 10}
                 y={y + 3}
                 textAnchor="end"
-                fontSize="10"
+                fontSize={isMobile ? "9" : "10"}
                 fill="hsl(var(--muted-foreground))"
               >
                 {label}
@@ -266,16 +275,17 @@ function SimpleLineChart({
           );
         })}
 
-        {/* X labels (dates at bottom only) */}
+        {/* X labels (rotated -45°) */}
         {data.map((d, i) => {
-          const x = P + (i * innerW) / (data.length - 1 || 1);
+          const x = PL + (i * innerW) / (data.length - 1 || 1);
           return (
             <text
               key={d.date}
               x={x}
-              y={H - 6}
-              textAnchor="middle"
-              fontSize="10"
+              y={axisY + 18}                           // a bit below the axis
+              transform={`rotate(-45, ${x}, ${axisY + 18})`}
+              textAnchor="end"
+              fontSize={isMobile ? "9" : "10"}
               fill="hsl(var(--muted-foreground))"
               fontWeight="bold"
             >
@@ -291,24 +301,26 @@ function SimpleLineChart({
         ))}
 
         {/* Axis labels */}
+        {/* Y axis title */}
         <text
-          // dời lệch trái một chút và xuống dưới một chút để tránh tick cuối
-          x={W - P + DATE_LABEL_X_OFFSET}
-          y={H - 12 + DATE_LABEL_Y_OFFSET}
-          textAnchor="end"
-          fontSize="10"
-          fill="hsl(var(--muted-foreground))"
-        >
-          Date
-        </text>
-        <text
-          x={P - 18}
-          y={P - 12}
+          x={PL - 24}
+          y={PT - 12}
           textAnchor="start"
           fontSize="10"
           fill="hsl(var(--muted-foreground))"
         >
           Hours (h)
+        </text>
+
+        {/* X axis title — put near the right but above rotated labels */}
+        <text
+          x={W - PR}
+          y={H - 10}
+          textAnchor="end"
+          fontSize="10"
+          fill="hsl(var(--muted-foreground))"
+        >
+          Date
         </text>
       </svg>
     </div>
