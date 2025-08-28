@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import petAwake from "@/assets/pet-awake.png";
 import petSleeping from "@/assets/pet-sleeping.png";
 import { HelpCircle, X } from "lucide-react";
 
@@ -39,7 +38,7 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const center = radius + strokeWidth + PADDING;
   const circumference = 2 * Math.PI * radius;
 
-  const petSrc = isBreakMode ? (sleepImage || petSleeping) : (petImage || petAwake);
+  const petSrc = isBreakMode ? (sleepImage || petSleeping) : (petImage || undefined);
 
   // ===== Time / progress
   const selectedMin = Math.max(0, Math.min(59, totalMinutes));
@@ -235,13 +234,15 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
       </svg>
 
       {/* Pet ở giữa */}
+      {petSrc && (
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <img
           src={petSrc}
-          alt={isBreakMode ? "Sleeping pet" : "Awake pet"}
+          alt={isBreakMode ? "Sleeping pet" : "Companion"}
           className="w-24 h-24 object-contain pointer-events-none"
         />
       </div>
+      )}
 
       {/* Tip nổi góc phải — có auto-dismiss 5s */}
       {showHowToTip && (
