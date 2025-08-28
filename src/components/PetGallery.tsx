@@ -117,11 +117,14 @@ export const PetGallery: React.FC = () => {
             sm:right-6 sm:top-6 sm:w-96 sm:max-w-none sm:shadow-xl
           "
         >
-          <div className="flex items-start p-3 sm:p-4">
+          <div className="flex items-start p-3 sm:p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex-1 text-sm sm:text-base">
               <b>Tip: </b>
-              Tap a pet card to flip and view details.
-              <br>Use button <b>Set as Companion</b> to make it your buddy. Tap again to return.</br>
+              <span>Tap a pet card to flip and view details.</span>
+              <br />
+              <span>
+                Use the <b>Set as Companion</b> button to make it your buddy. Tap again to return.
+              </span>
             </div>
             <button
               aria-label="Dismiss tip"
@@ -138,6 +141,7 @@ export const PetGallery: React.FC = () => {
           </div>
         </div>
       )}
+
 
       {/* Search + Filter button */}
       <div className="flex gap-2 items-center">
