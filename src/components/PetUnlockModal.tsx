@@ -29,6 +29,7 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
     if (!open) onClose();
   };
 
+  // Giữ nguyên UI Locked
   if (!isUnlocked) {
     return (
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -49,6 +50,14 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
   }
 
   const rarityStyle = RARITY_STYLES[pet.rarity];
+
+  const handleLetsGo = () => {
+    try {
+      onSetAsCompanion?.(pet.id);
+    } finally {
+      onClose();
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -79,7 +88,6 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             </div>
           </div>
 
-          {/* Unlock mode giữ nguyên tiêu đề cũ, Welcome mode dùng 2 dòng custom */}
           {mode === 'unlock' && (
             <div className="flex items-center justify-center gap-2 mb-2">
               <DialogTitle className="text-xl">New Pet Unlocked!</DialogTitle>
@@ -104,22 +112,13 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             </>
           )}
 
-          <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              View Later
-            </Button>
-            {onSetAsCompanion && (
-              <Button
-                onClick={() => {
-                  onSetAsCompanion(pet.id);
-                  onClose();
-                }}
-                className="flex-1"
-              >
-                Set as Companion
-              </Button>
-            )}
-          </div>
+          {/* ✅ Chỉ một nút “Let’s go” như yêu cầu */}
+          <Button
+            onClick={handleLetsGo}
+            className="w-full h-11 rounded-lg bg-[#FF6D53] text-white hover:bg-[#FF6D53]/90"
+          >
+            Let&apos;s go
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
