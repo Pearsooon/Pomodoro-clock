@@ -11,7 +11,7 @@ interface PetUnlockModalProps {
   onClose: () => void;
   onSetAsCompanion?: (petId: string) => void;
   isUnlocked?: boolean;
-  /** 'unlock' = như cũ, 'welcome' = hiện text chào mừng */
+  /** 'unlock' = New Pet Unlocked!, 'welcome' = Meet ... Your first Pomodoro pet. */
   mode?: 'unlock' | 'welcome';
 }
 
@@ -29,7 +29,6 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
     if (!open) onClose();
   };
 
-  // Giữ nguyên UI Locked
   if (!isUnlocked) {
     return (
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -51,14 +50,6 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
 
   const rarityStyle = RARITY_STYLES[pet.rarity];
 
-  const handleLetsGo = () => {
-    try {
-      onSetAsCompanion?.(pet.id);
-    } finally {
-      onClose();
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0">
@@ -67,7 +58,7 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             <div className="relative">
               <div
                 className={cn(
-                  "absolute inset-0 rounded-full animate-ping",
+                  'absolute inset-0 rounded-full animate-ping',
                   pet.rarity === 'Legendary'
                     ? 'bg-yellow-400'
                     : pet.rarity === 'Epic'
@@ -79,7 +70,7 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
               />
               <div
                 className={cn(
-                  "relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background",
+                  'relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background',
                   rarityStyle.border
                 )}
               >
@@ -112,10 +103,13 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             </>
           )}
 
-          {/* ✅ Chỉ một nút “Let’s go” như yêu cầu */}
+          {/* Single primary button */}
           <Button
-            onClick={handleLetsGo}
-            className="w-full h-11 rounded-lg bg-[#FF6D53] text-white hover:bg-[#FF6D53]/90"
+            onClick={() => {
+              onSetAsCompanion?.(pet.id);
+              onClose();
+            }}
+            className="w-full bg-[#FF6D53] hover:bg-[#FF6D53]/90 text-white"
           >
             Let&apos;s go
           </Button>

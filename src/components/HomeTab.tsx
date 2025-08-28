@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,6 @@ import { usePetCollection } from "@/hooks/usePetCollection";
 import { cn } from "@/lib/utils";
 import type { Pet } from "@/types/pet";
 import { PETS } from "@/data/pets";
-import { Badge } from "@/components/ui/badge";
 
 const EVENT_PET_UNLOCKED = "pet:unlocked";
 const DEFAULT_PET_ID = "nobita";
@@ -36,7 +35,6 @@ function hasAnyBlockedApps(): boolean {
     ];
     const fields = ["apps", "blocked", "list", "items", "bundleIds", "services"];
 
-    // 1) Thử các key phổ biến
     for (const k of preferred) {
       const raw = localStorage.getItem(k);
       if (!raw) continue;
@@ -50,7 +48,6 @@ function hasAnyBlockedApps(): boolean {
       }
     }
 
-    // 2) Quét toàn bộ localStorage
     const re = /(block|notif|noti|mute|silenc)/i;
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i) ?? "";
@@ -89,10 +86,12 @@ export const HomeTab: React.FC = () => {
   const [unlockedPet, setUnlockedPet] = useState<Pet | null>(null);
   const [pendingUnlockedPets, setPendingUnlockedPets] = useState<Pet[]>([]);
 
-  // Welcome
+  // Welcome (first run)
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // Lấy thêm API để seed pet mặc định
+  // Flag để bỏ qua unlock-modal đầu tiên do seed
+  const suppressFirstUnlockRef = useRef(false);
+
   const { currentCompanion, setAsCompanion, isPetUnlocked, unlockPet } =
     usePetCollection();
 
@@ -110,7 +109,7 @@ export const HomeTab: React.FC = () => {
     setWorkMinutes,
   } = usePomodoro();
 
-  // Pet mặc định (Nobita) để dùng trong Welcome/ảnh
+  // Pet mặc định (Nobita) cho welcome/ảnh
   const defaultPet = useMemo(
     () => PETS.find((p) => p.id === DEFAULT_PET_ID) || null,
     []
@@ -145,7 +144,7 @@ export const HomeTab: React.FC = () => {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Lắng nghe event mở khoá pet -> chỉ thêm vào queue
+  // Lắng nghe event mở khoá pet -> thêm vào queue
   useEffect(() => {
     const onPetUnlocked = (e: Event) => {
       const ce = e as CustomEvent<Pet>;
@@ -159,58 +158,56 @@ export const HomeTab: React.FC = () => {
       );
   }, []);
 
-  // Welcome first visit (chỉ hiện nếu chưa seed)
+  // Welcome first visit
   useEffect(() => {
     const SEEN_KEY = "welcome_seen_v1";
     const seen =
       typeof window !== "undefined" ? localStorage.getItem(SEEN_KEY) : "1";
     if (!seen) {
       setShowWelcome(true);
-      localStorage.setItem(SEEN_KEY, "1");
     }
   }, []);
 
-  // ✅ Seed pet mặc định Nobita ở lần chạy đầu tiên
+  // ✅ Seed Nobita lần đầu (unlock + companion), nhưng không hiển thị unlock-modal
   useEffect(() => {
     const SEED_KEY = "default_pet_seeded_nobita_v1";
     try {
       const seeded = localStorage.getItem(SEED_KEY);
 
       if (!seeded) {
-        // Unlock nếu chưa có (sẽ phát event -> modal tự hiện)
         if (!isPetUnlocked(DEFAULT_PET_ID)) {
+          suppressFirstUnlockRef.current = true; // bỏ qua unlock-modal 1 lần
           unlockPet(DEFAULT_PET_ID);
         }
-        // Set companion để đồng hồ có ảnh ngay
         if (!currentCompanion) {
           setAsCompanion(DEFAULT_PET_ID);
         }
-        // Ẩn Welcome (đã có pet mặc định)
-        localStorage.setItem("welcome_seen_v1", "1");
-        setShowWelcome(false);
-
         localStorage.setItem(SEED_KEY, "1");
       } else {
-        // Nếu đã seed từ trước nhưng chưa có companion, set lại
         if (!currentCompanion) {
           setAsCompanion(DEFAULT_PET_ID);
         }
       }
     } catch {
-      // Fallback khi localStorage lỗi
       if (!isPetUnlocked(DEFAULT_PET_ID)) unlockPet(DEFAULT_PET_ID);
       if (!currentCompanion) setAsCompanion(DEFAULT_PET_ID);
-      setShowWelcome(false);
     }
   }, [currentCompanion, isPetUnlocked, unlockPet, setAsCompanion]);
 
-  // Mở modal pet nếu không ở break
+  // Mở modal pet (bỏ qua nếu đang welcome; bỏ qua unlock đầu tiên do seed)
   useEffect(() => {
+    if (showWelcome) return;
+
     if (phase !== "break" && !unlockedPet && pendingUnlockedPets.length > 0) {
+      if (suppressFirstUnlockRef.current) {
+        suppressFirstUnlockRef.current = false;
+        setPendingUnlockedPets((prev) => prev.slice(1)); // bỏ qua modal unlock đầu
+        return;
+      }
       setUnlockedPet(pendingUnlockedPets[0]);
       setPendingUnlockedPets((prev) => prev.slice(1));
     }
-  }, [phase, unlockedPet, pendingUnlockedPets]);
+  }, [phase, unlockedPet, pendingUnlockedPets, showWelcome]);
 
   const handleCloseUnlockedModal = () => {
     if (phase !== "break" && pendingUnlockedPets.length > 0) {
@@ -229,14 +226,13 @@ export const HomeTab: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-6 space-y-8">
-      {/* ---------- Header giống Pet Gallery ---------- */}
+      {/* Header */}
       <div className="text-center">
         <h1 className="text-2xl font-bold text-foreground mb-2">Focus Timer</h1>
         <p className="text-muted-foreground">
           Break work into focused sessions with short rests to stay productive
         </p>
       </div>
-      {/* --------------------------------------------- */}
 
       <Card
         className={cn(
@@ -364,47 +360,27 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Welcome vẫn giữ — nhưng sẽ bị ẩn khi đã seed Nobita */}
-      <Dialog
-        open={showWelcome}
-        onOpenChange={(open) => !open && setShowWelcome(false)}
-      >
-        <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0 [&_[aria-label='Close']]:hidden">
-          <DialogHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full animate-ping bg-blue-300/60" />
-                <div className="relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background border-blue-400">
-                  <img
-                    src={defaultPet?.image || currentCompanion?.image}
-                    alt={defaultPet?.name || "Your buddy"}
-                    className="w-12 h-12 object-contain"
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogTitle className="text-xl">
-              Meet {defaultPet?.name || "your buddy"}! Your first Pomodoro pet.
-            </DialogTitle>
-          </DialogHeader>
+      {/* Welcome modal (FIRST RUN) dùng PetUnlockModal với mode="welcome" */}
+      {defaultPet && (
+        <PetUnlockModal
+          pet={defaultPet}
+          isOpen={showWelcome}
+          onClose={() => {
+            setShowWelcome(false);
+            try {
+              localStorage.setItem("welcome_seen_v1", "1");
+            } catch {}
+          }}
+          onSetAsCompanion={(id) => {
+            if (!isPetUnlocked(id)) unlockPet(id);
+            setAsCompanion(id);
+          }}
+          isUnlocked={true}
+          mode="welcome"
+        />
+      )}
 
-          <div className="text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Start focusing with {defaultPet?.name || "your buddy"} and earn more pets!
-            </p>
-            <Button
-              onClick={() => {
-                setAsCompanion(DEFAULT_PET_ID);
-                setShowWelcome(false);
-              }}
-              className="w-full"
-            >
-              Let&apos;s go
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
+      {/* Modal pet rớt bình thường */}
       <PetUnlockModal
         pet={unlockedPet}
         isOpen={!!unlockedPet}
