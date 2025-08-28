@@ -197,7 +197,7 @@ export const HomeTab: React.FC = () => {
       <div className="text-center">
         <h1 className="text-2xl font-bold text-foreground mb-2">Focus Timer</h1>
         <p className="text-muted-foreground">
-          Complete Pomodoro cycles to unlock pets
+          Break work into focused sessions with short rests to stay productive
         </p>
       </div>
       {/* --------------------------------------------- */}
