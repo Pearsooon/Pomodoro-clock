@@ -18,6 +18,7 @@ import type { Pet } from "@/types/pet";
 import { PETS } from "@/data/pets";
 
 const EVENT_PET_UNLOCKED = "pet:unlocked";
+const DEFAULT_PET_ID = "nobita";
 
 /** Kiểm tra đã block app nào chưa (quét rộng localStorage) */
 function hasAnyBlockedApps(): boolean {
@@ -34,7 +35,6 @@ function hasAnyBlockedApps(): boolean {
     ];
     const fields = ["apps", "blocked", "list", "items", "bundleIds", "services"];
 
-    // 1) Thử các key phổ biến trước
     for (const k of preferred) {
       const raw = localStorage.getItem(k);
       if (!raw) continue;
@@ -48,7 +48,6 @@ function hasAnyBlockedApps(): boolean {
       }
     }
 
-    // 2) Quét toàn bộ localStorage: key có 'block' hoặc 'notif'
     const re = /(block|notif|noti|mute|silenc)/i;
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i) ?? "";
@@ -60,7 +59,6 @@ function hasAnyBlockedApps(): boolean {
       try {
         val = JSON.parse(raw);
       } catch {
-        // nếu là chuỗi thuần nhưng có nội dung -> coi như có
         if (raw.trim().length > 0) return true;
         continue;
       }
@@ -73,9 +71,7 @@ function hasAnyBlockedApps(): boolean {
         }
       }
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
   return false;
 }
 
@@ -83,18 +79,20 @@ export const HomeTab: React.FC = () => {
   const [showCycleModal, setShowCycleModal] = useState(false);
   const [showStopDialog, setShowStopDialog] = useState(false);
 
-  // Gợi ý block khi nhấn Start mà chưa block app nào
+  // Prompt block
   const [showBlockPrompt, setShowBlockPrompt] = useState(false);
 
-  // Modal đang hiển thị 1 pet
+  // Queue modal unlock pet
   const [unlockedPet, setUnlockedPet] = useState<Pet | null>(null);
-  // Hàng chờ pet mở khóa (không bật modal nếu đang break)
   const [pendingUnlockedPets, setPendingUnlockedPets] = useState<Pet[]>([]);
 
-  // Popup chào mừng đầu vào
+  // Welcome (first run)
   const [showWelcome, setShowWelcome] = useState(false);
 
-  const { currentCompanion, checkForNewPetUnlocks, setAsCompanion, awardSessionXP } =
+  // Flag để bỏ qua unlock-modal đầu tiên do seed
+  const suppressFirstUnlockRef = useRef(false);
+
+  const { currentCompanion, setAsCompanion, isPetUnlocked, unlockPet } =
     usePetCollection();
 
   const {
@@ -111,8 +109,9 @@ export const HomeTab: React.FC = () => {
     setWorkMinutes,
   } = usePomodoro();
 
-  const focusBuddy = useMemo(
-    () => PETS.find((p) => p.id === "focus-buddy") || null,
+  // Pet mặc định (Nobita) cho welcome/ảnh
+  const defaultPet = useMemo(
+    () => PETS.find((p) => p.id === DEFAULT_PET_ID) || null,
     []
   );
 
@@ -121,12 +120,10 @@ export const HomeTab: React.FC = () => {
       setShowStopDialog(true);
       return;
     }
-    // Chưa chạy -> kiểm tra block list
     if (!hasAnyBlockedApps()) {
       setShowBlockPrompt(true);
       return;
     }
-    // Đã có app bị block -> mở chọn cycle như cũ
     setShowCycleModal(true);
   };
 
@@ -135,7 +132,7 @@ export const HomeTab: React.FC = () => {
     setShowStopDialog(false);
   };
 
-  // 🔄 Tự đóng prompt nếu blocklist thay đổi ở tab khác
+  // Tự đóng prompt nếu blocklist đổi ở tab khác
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (!e.key) return;
@@ -147,7 +144,7 @@ export const HomeTab: React.FC = () => {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // Lắng nghe sự kiện mở khóa pet → CHỈ thêm vào queue
+  // Lắng nghe event mở khoá pet -> thêm vào queue
   useEffect(() => {
     const onPetUnlocked = (e: Event) => {
       const ce = e as CustomEvent<Pet>;
@@ -161,71 +158,57 @@ export const HomeTab: React.FC = () => {
       );
   }, []);
 
-  // Hiện popup chào mừng khi lần đầu vào trang
+  // Welcome first visit
   useEffect(() => {
     const SEEN_KEY = "welcome_seen_v1";
     const seen =
       typeof window !== "undefined" ? localStorage.getItem(SEEN_KEY) : "1";
     if (!seen) {
       setShowWelcome(true);
-      localStorage.setItem(SEEN_KEY, "1");
     }
   }, []);
 
-  // Nút Let's go
-  const letsGo = () => {
-    setAsCompanion("focus-buddy");
-    setShowWelcome(false);
-  };
-
-  // Phát hiện chuyển pha
-  const prevPhase = useRef(phase);
+  // ✅ Seed Nobita lần đầu (unlock + companion), nhưng không hiển thị unlock-modal
   useEffect(() => {
-    const endedWork =
-      prevPhase.current === "work" &&
-      (phase === "break" || phase === "completed");
+    const SEED_KEY = "default_pet_seeded_nobita_v1";
+    try {
+      const seeded = localStorage.getItem(SEED_KEY);
 
-    if (endedWork) {
-      const cyclesDone = currentCycle;
-      const currentStreak = 0;
-      const focusMinutes = totalMinutes;
-      const level = 1;
-
-      checkForNewPetUnlocks({
-        totalCycles: cyclesDone,
-        currentStreak,
-        totalFocusMinutes: focusMinutes,
-        level,
-      });
+      if (!seeded) {
+        if (!isPetUnlocked(DEFAULT_PET_ID)) {
+          suppressFirstUnlockRef.current = true; // bỏ qua unlock-modal 1 lần
+          unlockPet(DEFAULT_PET_ID);
+        }
+        if (!currentCompanion) {
+          setAsCompanion(DEFAULT_PET_ID);
+        }
+        localStorage.setItem(SEED_KEY, "1");
+      } else {
+        if (!currentCompanion) {
+          setAsCompanion(DEFAULT_PET_ID);
+        }
+      }
+    } catch {
+      if (!isPetUnlocked(DEFAULT_PET_ID)) unlockPet(DEFAULT_PET_ID);
+      if (!currentCompanion) setAsCompanion(DEFAULT_PET_ID);
     }
+  }, [currentCompanion, isPetUnlocked, unlockPet, setAsCompanion]);
 
-    // Cộng XP khi hoàn tất toàn bộ buổi học
-    if (prevPhase.current === "work" && phase === "completed") {
-      const xp = awardSessionXP(totalMinutes, totalCycles);
-      console.log(
-        `[XP] +${xp} XP to companion for session: ${totalMinutes}m × ${totalCycles} cycles`
-      );
-    }
-
-    prevPhase.current = phase;
-  }, [
-    phase,
-    currentCycle,
-    totalMinutes,
-    totalCycles,
-    checkForNewPetUnlocks,
-    awardSessionXP,
-  ]);
-
-  // Khi KHÔNG ở break → nếu có queue & chưa mở modal → bật modal
+  // Mở modal pet (bỏ qua nếu đang welcome; bỏ qua unlock đầu tiên do seed)
   useEffect(() => {
+    if (showWelcome) return;
+
     if (phase !== "break" && !unlockedPet && pendingUnlockedPets.length > 0) {
+      if (suppressFirstUnlockRef.current) {
+        suppressFirstUnlockRef.current = false;
+        setPendingUnlockedPets((prev) => prev.slice(1)); // bỏ qua modal unlock đầu
+        return;
+      }
       setUnlockedPet(pendingUnlockedPets[0]);
       setPendingUnlockedPets((prev) => prev.slice(1));
     }
-  }, [phase, unlockedPet, pendingUnlockedPets]);
+  }, [phase, unlockedPet, pendingUnlockedPets, showWelcome]);
 
-  // Đóng modal pet unlock
   const handleCloseUnlockedModal = () => {
     if (phase !== "break" && pendingUnlockedPets.length > 0) {
       setUnlockedPet(pendingUnlockedPets[0]);
@@ -243,6 +226,14 @@ export const HomeTab: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-120px)] p-6 space-y-8">
+      {/* Header */}
+      <div className="text-center">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Focus Timer</h1>
+        <p className="text-muted-foreground">
+          Break work into focused sessions with short rests to stay productive
+        </p>
+      </div>
+
       <Card
         className={cn(
           "p-8 w-full max-w-sm transition-all duration-500 shadow-lg",
@@ -278,7 +269,6 @@ export const HomeTab: React.FC = () => {
           </div>
         </div>
 
-        {/* Start/Stop button: Start = cam; Stop = nền đỏ chữ trắng */}
         <Button
           onClick={handleStartClick}
           className={cn(
@@ -292,14 +282,12 @@ export const HomeTab: React.FC = () => {
         </Button>
       </Card>
 
-      {/* Cycle selection */}
       <CycleModal
         isOpen={showCycleModal}
         onClose={() => setShowCycleModal(false)}
         onStart={(cycles) => startTimer(cycles, totalMinutes)}
       />
 
-      {/* Stop confirm */}
       <Dialog
         open={showStopDialog}
         onOpenChange={(open) => !open && setShowStopDialog(false)}
@@ -331,24 +319,22 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Prompt nhắc block notifications — YES bên trái (cam), NO bên phải (đỏ) */}
       <Dialog open={showBlockPrompt} onOpenChange={setShowBlockPrompt}>
         <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0">
           <DialogHeader>
-            <DialogTitle>
-              No blocked apps detected!
-            </DialogTitle>
+            <DialogTitle>No blocked apps detected!</DialogTitle>
             <DialogDescription>
               Do you want to block notifications before starting your session?
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex gap-3 mt-6">
-            {/* YES -> chuyển qua tab Block */}
             <Button
               className="flex-1 bg-[#FF6D53] text-white border-[#FF6D53] hover:bg-[#FF6D53]/90"
               onClick={() => {
-                try { localStorage.setItem("active_tab", "block"); } catch {}
+                try {
+                  localStorage.setItem("active_tab", "block");
+                } catch {}
                 try {
                   window.dispatchEvent(
                     new CustomEvent("nav:tab", { detail: "block" as const })
@@ -360,7 +346,6 @@ export const HomeTab: React.FC = () => {
               Yes
             </Button>
 
-            {/* NO -> tiếp tục chọn cycle */}
             <Button
               variant="destructive"
               className="flex-1"
@@ -375,42 +360,27 @@ export const HomeTab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Welcome dialog khi mới vào trang (1 nút, ẩn dấu ✕) */}
-      <Dialog
-        open={showWelcome}
-        onOpenChange={(open) => !open && setShowWelcome(false)}
-      >
-        <DialogContent className="sm:max-w-md w-[calc(100vw-2rem)] sm:w-full mx-0 [&_[aria-label='Close']]:hidden">
-          <DialogHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full animate-ping bg-blue-300/60" />
-                <div className="relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background border-blue-400">
-                  <img
-                    src={focusBuddy?.image || currentCompanion?.image}
-                    alt="Focus Buddy"
-                    className="w-12 h-12 object-contain"
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogTitle className="text-xl">
-              Meet Focus Buddy! Your first Pomodoro pet.
-            </DialogTitle>
-          </DialogHeader>
+      {/* Welcome modal (FIRST RUN) dùng PetUnlockModal với mode="welcome" */}
+      {defaultPet && (
+        <PetUnlockModal
+          pet={defaultPet}
+          isOpen={showWelcome}
+          onClose={() => {
+            setShowWelcome(false);
+            try {
+              localStorage.setItem("welcome_seen_v1", "1");
+            } catch {}
+          }}
+          onSetAsCompanion={(id) => {
+            if (!isPetUnlocked(id)) unlockPet(id);
+            setAsCompanion(id);
+          }}
+          isUnlocked={true}
+          mode="welcome"
+        />
+      )}
 
-          <div className="text-center space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Start focusing with Focus Buddy and earn more pets!
-            </p>
-            <Button onClick={letsGo} className="w-full">
-              Let&apos;s go
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Pet unlock modal (sau break mới hiện) */}
+      {/* Modal pet rớt bình thường */}
       <PetUnlockModal
         pet={unlockedPet}
         isOpen={!!unlockedPet}

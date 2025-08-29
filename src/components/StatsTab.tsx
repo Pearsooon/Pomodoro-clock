@@ -1,13 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BottomNavigation } from "@/components/BottomNavigation";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-type ChartType = "bar-vertical" | "bar-horizontal" | "line";
+type ChartType = "bar-horizontal" | "line";
 
-// ---- DEMO DATA (14 ngày)
 const DATA_14 = [
   { date: "08-13", hours: 0.8 },
   { date: "08-14", hours: 1.2 },
@@ -27,10 +25,9 @@ const DATA_14 = [
 
 const StatsTab: React.FC = () => {
   const navigate = useNavigate();
-  const [chartType, setChartType] = useState<ChartType>("bar-vertical");
+  const [chartType, setChartType] = useState<ChartType>("bar-horizontal");
   const data14 = DATA_14;
 
-  // KPIs
   const totalHours7d = useMemo(
     () => data14.slice(-7).reduce((s, d) => s + d.hours, 0).toFixed(1),
     [data14]
@@ -49,31 +46,39 @@ const StatsTab: React.FC = () => {
     return item;
   }, [data14]);
 
-  // Range & scale
   const maxHours = Math.max(2, ...data14.map((d) => d.hours));
   const rangeText = `${data14[0].date} → ${data14[data14.length - 1].date}`;
 
   return (
     <div className="p-6 pb-24 space-y-6">
       {/* Top bar */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/", { state: { tab: "settings" } })}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Settings
-        </Button>
-        <h1 className="text-xl font-semibold">Focus Insights</h1>
-        <div className="w-[130px]" /> {/* spacer */}
+      <div className="grid grid-cols-3 items-center">
+        <button
+          aria-label="Back to Settings"
+          onClick={() => navigate("/", { state: { tab: "settings" } })}
+          className="justify-self-start inline-flex items-center justify-center w-12 h-12 rounded-full hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          <ArrowLeft className="w-7 h-7 text-primary" />
+        </button>
+
+        <div className="justify-self-center text-center">
+          <h1 className="text-2xl font-bold leading-tight">Focus Insights</h1>
+          <p className="text-sm text-muted-foreground">Your last 14 days of focus time</p>
+        </div>
+
+        <div className="justify-self-end w-12 h-12" />
       </div>
 
-      <div className="text-xs text-muted-foreground mb-2 flex items-center gap-2">
-        <span
+      {/* Breadcrumb */}
+      <div className="text-xs text-muted-foreground -mt-1">
+        <button
           className="cursor-pointer hover:underline"
-          onClick={() => navigate("/settings")}
+          onClick={() => navigate("/", { state: { tab: "settings" } })}
         >
-          Setting
-        </span>
-        <span>›</span>
-        <span className="font-semibold">Insight</span>
+          Settings
+        </button>
+        <span className="mx-1">›</span>
+        <span className="font-semibold">Insights</span>
       </div>
 
       {/* Summary */}
@@ -86,13 +91,6 @@ const StatsTab: React.FC = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant={chartType === "bar-vertical" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setChartType("bar-vertical")}
-            >
-              Bar (Vertical)
-            </Button>
             <Button
               variant={chartType === "bar-horizontal" ? "default" : "outline"}
               size="sm"
@@ -112,109 +110,48 @@ const StatsTab: React.FC = () => {
       </Card>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Total hours (7d)</div>
-          <div className="text-2xl font-bold">{totalHours7d}h</div>
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-3">
+          <div className="text-[11px] sm:text-xs text-muted-foreground">Total hours (7d)</div>
+          <div className="text-xl sm:text-2xl font-bold">{totalHours7d}h</div>
         </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Avg/day (14d)</div>
-          <div className="text-2xl font-bold">{avgDay14d}h</div>
+        <Card className="p-3">
+          <div className="text-[11px] sm:text-xs text-muted-foreground">Avg/day (14d)</div>
+          <div className="text-xl sm:text-2xl font-bold">{avgDay14d}h</div>
         </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Active days (14d)</div>
-          <div className="text-2xl font-bold">{activeDays14d}</div>
+        <Card className="p-3">
+          <div className="text-[11px] sm:text-xs text-muted-foreground">Active days (14d)</div>
+          <div className="text-xl sm:text-2xl font-bold">{activeDays14d}</div>
         </Card>
-        <Card className="p-4">
-          <div className="text-xs text-muted-foreground">Best day</div>
-          <div className="text-2xl font-bold">{bestDay.date} • {bestDay.hours}h</div>
+        <Card className="p-3">
+          <div className="text-[11px] sm:text-xs text-muted-foreground">Best day</div>
+          <div className="text-xl sm:text-2xl font-bold">
+            {bestDay.date} • {bestDay.hours}h
+          </div>
         </Card>
       </div>
 
       {/* Chart area */}
-      <Card className="p-4">
-        {/* title under card to keep consistent spacing */}
-        <h3 className="font-medium text-sm mb-2">
-          Daily focus hours (no tooltip; mobile-friendly)
-        </h3>
-
-        {/* BAR – VERTICAL */}
-        {chartType === "bar-vertical" && (
-          <div className="relative h-64">
-            {/* grid lines + y labels */}
-            {Array.from({ length: 4 }).map((_, i) => {
-              const y = (i * 100) / 4;
-              const label = ((maxHours * i) / 4).toFixed(0) + "h";
-              return (
-                <div key={i}>
-                  <div
-                    className="absolute left-10 right-2 h-px bg-border"
-                    style={{ bottom: `calc(${y}% + 16px)` }}
-                  />
-                  <div
-                    className="absolute left-0 w-8 text-[10px] text-right text-muted-foreground"
-                    style={{ bottom: `calc(${y}% + 12px)` }}
-                  >
-                    {label}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* bars */}
-            <div className="absolute left-10 right-2 top-3 bottom-10 flex items-end gap-1.5">
-              {data14.map((d, idx) => {
-                const hPct = (d.hours / maxHours) * 100;
-                const showTick = idx % 2 === 0; // bớt dày
-                return (
-                  <div key={d.date} className="flex-1 h-full flex flex-col-reverse items-center">
-                    {/* x label */}
-                    <div className="text-[10px] text-muted-foreground mt-1">
-                      {showTick ? d.date.slice(5) : ""}
-                    </div>
-                    {/* column container to give percentage height a reference */}
-                    <div className="w-full h-full flex items-end">
-                      <div
-                        className="w-full bg-primary rounded-t-md"
-                        style={{ height: `${hPct}%`, transition: "height .3s" }}
-                        aria-label={`${d.date} ${d.hours} hours`}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      <Card className="p-4" role="group" aria-labelledby="chart-title">
+        <div className="mb-4">
+          <h3 id="chart-title" className="font-medium text-sm">
+            {chartType === "bar-horizontal"
+              ? "Daily Focus Hours (Horizontal Bar)"
+              : "Daily Focus Hours (Line Chart)"}
+          </h3>
+          <div className="mt-2 flex items-center gap-3" role="list" aria-label="Legend">
+            <LegendSwatch label="Focus hours (h)" />
+            <span className="text-xs text-muted-foreground">Date: MM-DD</span>
+            <span className="text-xs text-muted-foreground">Hours: 0 - {maxHours}</span>
           </div>
-        )}
+        </div>
 
-        {/* BAR – HORIZONTAL */}
         {chartType === "bar-horizontal" && (
-          <div className="space-y-2">
-            {data14.slice().reverse().map((d) => {
-              const wPct = (d.hours / maxHours) * 100;
-              return (
-                <div key={d.date} className="flex items-center gap-2">
-                  <div className="w-12 shrink-0 text-[10px] text-muted-foreground text-right">
-                    {d.date.slice(5)}
-                  </div>
-                  <div className="flex-1 h-3 rounded bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-primary"
-                      style={{ width: `${wPct}%`, transition: "width .3s" }}
-                      aria-label={`${d.date} ${d.hours} hours`}
-                    />
-                  </div>
-                  <div className="w-10 shrink-0 text-[10px] text-muted-foreground text-right">
-                    {d.hours}h
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <BarHorizontal data={data14} maxY={maxHours} />
         )}
-
-        {/* LINE */}
-        {chartType === "line" && <SimpleLineChart data={data14} maxY={maxHours} />}
+        {chartType === "line" && (
+          <SimpleLineChart data={data14} maxY={maxHours} />
+        )}
       </Card>
     </div>
   );
@@ -223,7 +160,56 @@ const StatsTab: React.FC = () => {
 export default StatsTab;
 export { StatsTab };
 
-/** SVG line chart (no tooltip) */
+/* ---------- Legend ---------- */
+function LegendSwatch({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 px-2 py-1 rounded-full border" role="listitem">
+      <span className="inline-block w-3 h-3 rounded-sm bg-primary" aria-hidden />
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+/* ---------- Horizontal Bar Chart ---------- */
+function BarHorizontal({
+  data,
+  maxY,
+}: {
+  data: { date: string; hours: number }[];
+  maxY: number;
+}) {
+  return (
+    <div className="space-y-2">
+      {data.slice().reverse().map((d) => {
+        const wPct = (d.hours / maxY) * 100;
+        return (
+          <div key={d.date} className="flex items-center gap-2">
+            {/* DATE: luôn hiện đầy đủ bên trái */}
+            <div className="w-14 shrink-0 text-[10px] text-muted-foreground text-right font-bold">
+              {d.date}
+            </div>
+            <div className="flex-1 h-3 rounded bg-muted overflow-hidden relative">
+              <div className="absolute left-0 top-0 bottom-0 w-px bg-foreground/60" />
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${wPct}%`, transition: "width .3s" }}
+              />
+            </div>
+            <div className="w-10 shrink-0 text-[10px] text-muted-foreground text-right">
+              {d.hours}h
+            </div>
+          </div>
+        );
+      })}
+      <div className="flex items-center justify-between pt-1">
+        <span className="text-[10px] text-muted-foreground">0h</span>
+        <span className="text-[10px] text-muted-foreground">Hours (h)</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Line Chart (rotated bottom labels) ---------- */
 function SimpleLineChart({
   data,
   maxY,
@@ -231,49 +217,111 @@ function SimpleLineChart({
   data: { date: string; hours: number }[];
   maxY: number;
 }) {
-  const W = 640;
-  const H = 240;
-  const P = 24;
-  const innerW = W - P * 2;
-  const innerH = H - P * 2;
+  // Responsive width for mobile/desktop (guard SSR)
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 600;
+
+  // Chart size
+  const W = isMobile ? 420 : 1200;
+  const H = isMobile ? 320 : 500;
+
+  // Separate paddings to have extra space at bottom for rotated labels
+  const PT = 40;          // top
+  const PR = 40;          // right
+  const PB = 80;          // bottom (extra for -45° labels)
+  const PL = isMobile ? 48 : 56; // left (room for Y labels)
+
+  const innerW = W - PL - PR;
+  const innerH = H - PT - PB;
 
   const points = data.map((d, i) => {
-    const x = P + (i * innerW) / (data.length - 1 || 1);
-    const y = P + innerH - (d.hours / maxY) * innerH;
+    const x = PL + (i * innerW) / (data.length - 1 || 1);
+    const y = PT + innerH - (d.hours / maxY) * innerH;
     return [x, y] as const;
   });
   const path = points.map(([x, y]) => `${x},${y}`).join(" ");
 
+  // Where to place axis labels
+  const axisX = PL;
+  const axisY = PT + innerH;
+
   return (
-    <div className="h-64">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
-        {/* grid */}
-        {Array.from({ length: 4 }).map((_, i) => {
-          const y = P + (i * innerH) / 4;
-          const label = ((maxY * i) / 4).toFixed(0) + "h";
+    <div className="w-full min-h-[320px] h-[500px]">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" className="w-full h-full">
+        {/* Y grid + labels */}
+        {Array.from({ length: 5 }).map((_, i) => {
+          const ratio = i / 4;
+          const y = PT + (1 - ratio) * innerH;
+          const label = (maxY * ratio).toFixed(0) + "h";
           return (
             <g key={i}>
-              <line x1={P} y1={y} x2={W - P} y2={y} stroke="hsl(var(--border))" strokeDasharray="3 3" />
-              <text x={P - 8} y={y + 3} textAnchor="end" fontSize="10" fill="hsl(var(--muted-foreground))">
+              <line
+                x1={PL}
+                y1={y}
+                x2={W - PR}
+                y2={y}
+                stroke="hsl(var(--border))"
+                strokeDasharray={i === 4 ? undefined : "3 3"}
+              />
+              <text
+                x={PL - 10}
+                y={y + 3}
+                textAnchor="end"
+                fontSize={isMobile ? "9" : "10"}
+                fill="hsl(var(--muted-foreground))"
+              >
                 {label}
               </text>
             </g>
           );
         })}
-        {/* x labels */}
+
+        {/* X labels (rotated -45°) */}
         {data.map((d, i) => {
-          const x = P + (i * innerW) / (data.length - 1 || 1);
+          const x = PL + (i * innerW) / (data.length - 1 || 1);
           return (
-            <text key={d.date} x={x} y={H - 6} textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))">
-              {d.date.slice(5)}
+            <text
+              key={d.date}
+              x={x}
+              y={axisY + 18}                           // a bit below the axis
+              transform={`rotate(-45, ${x}, ${axisY + 18})`}
+              textAnchor="end"
+              fontSize={isMobile ? "9" : "10"}
+              fill="hsl(var(--muted-foreground))"
+              fontWeight="bold"
+            >
+              {d.date}
             </text>
           );
         })}
-        {/* line + dots */}
+
+        {/* Line + Dots */}
         <polyline fill="none" stroke="hsl(var(--primary))" strokeWidth="2" points={path} />
         {points.map(([x, y], idx) => (
           <circle key={idx} cx={x} cy={y} r="3" fill="hsl(var(--primary))" />
         ))}
+
+        {/* Axis labels */}
+        {/* Y axis title */}
+        <text
+          x={PL - 24}
+          y={PT - 12}
+          textAnchor="start"
+          fontSize="10"
+          fill="hsl(var(--muted-foreground))"
+        >
+          Hours (h)
+        </text>
+
+        {/* X axis title — put near the right but above rotated labels */}
+        <text
+          x={W - PR}
+          y={H - 10}
+          textAnchor="end"
+          fontSize="10"
+          fill="hsl(var(--muted-foreground))"
+        >
+          Date
+        </text>
       </svg>
     </div>
   );

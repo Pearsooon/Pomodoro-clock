@@ -11,7 +11,7 @@ interface PetUnlockModalProps {
   onClose: () => void;
   onSetAsCompanion?: (petId: string) => void;
   isUnlocked?: boolean;
-  /** 'unlock' = như cũ, 'welcome' = hiện text chào mừng */
+  /** 'unlock' = sau session rớt pet, 'welcome' = lần đầu vào app */
   mode?: 'unlock' | 'welcome';
 }
 
@@ -58,7 +58,7 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             <div className="relative">
               <div
                 className={cn(
-                  "absolute inset-0 rounded-full animate-ping",
+                  'absolute inset-0 rounded-full animate-ping',
                   pet.rarity === 'Legendary'
                     ? 'bg-yellow-400'
                     : pet.rarity === 'Epic'
@@ -70,7 +70,7 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
               />
               <div
                 className={cn(
-                  "relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background",
+                  'relative w-20 h-20 rounded-full border-4 flex items-center justify-center bg-background',
                   rarityStyle.border
                 )}
               >
@@ -79,7 +79,6 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             </div>
           </div>
 
-          {/* Unlock mode giữ nguyên tiêu đề cũ, Welcome mode dùng 2 dòng custom */}
           {mode === 'unlock' && (
             <div className="flex items-center justify-center gap-2 mb-2">
               <DialogTitle className="text-xl">New Pet Unlocked!</DialogTitle>
@@ -104,22 +103,38 @@ export const PetUnlockModal: React.FC<PetUnlockModalProps> = ({
             </>
           )}
 
-          <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              View Later
+          {mode === 'welcome' ? (
+            // Giữ một nút duy nhất cho màn welcome
+            <Button
+              onClick={() => {
+                onSetAsCompanion?.(pet.id);
+                onClose();
+              }}
+              className="w-full bg-[#FF6D53] hover:bg-[#FF6D53]/90 text-white"
+            >
+              Let&apos;s go
             </Button>
-            {onSetAsCompanion && (
+          ) : (
+            // Sau session: 2 nút, "Set as Companion" ở bên trái nền cam
+            <div className="flex gap-3 mt-6">
               <Button
                 onClick={() => {
-                  onSetAsCompanion(pet.id);
+                  onSetAsCompanion?.(pet.id);
                   onClose();
                 }}
-                className="flex-1"
+                className="flex-1 bg-[#FF6D53] hover:bg-[#FF6D53]/90 text-white"
               >
                 Set as Companion
               </Button>
-            )}
-          </div>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                className="flex-1"
+              >
+                View later
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
