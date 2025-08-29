@@ -113,11 +113,16 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   // ===== Popup for mobile & desktop
   const showHelp = () =>
     toast({
-      title: "How to set time",
-      description:
-        "Slide the orange knob around the ring to adjust minutes. Tip: tap anywhere on the ring to jump there.",
-      duration: 4500, // ms
+      title: "Guide",
+      description: (
+        <ol className="list-decimal ml-5 space-y-1">
+          <li>Slide the orange knob around the ring to adjust minutes. Tip: tap anywhere on the ring to jump.</li>
+          <li>The longer you focus, the higher your chances of unlocking a pet.</li>
+        </ol>
+      ),
+      duration: 4000,
     });
+
 
   return (
     <div className={cn("relative flex items-center justify-center", className)}>
