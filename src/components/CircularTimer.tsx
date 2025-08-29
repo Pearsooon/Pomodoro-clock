@@ -108,19 +108,12 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
   const knobX = center + radius * Math.cos(knobAngle);
   const knobY = center + radius * Math.sin(knobAngle);
 
-  // ===== Popup for mobile & desktop
-  const showHelp = () =>
-    toast({
-      title: "Guide",
-      description: (
-        <ol className="list-decimal ml-5 space-y-1">
-          <li>Slide the orange knob around the ring to adjust minutes. Tip: tap anywhere on the ring to jump.</li>
-          <li>The longer you focus, the higher your chances of unlocking a pet.</li>
-        </ol>
-      ),
-      duration: 4000,
-    });
-
+  // Auto-dismiss tip sau 5s
+  useEffect(() => {
+    if (!showHowToTip) return;
+    const t = setTimeout(() => setShowHowToTip(false), 5000);
+    return () => clearTimeout(t);
+  }, [showHowToTip]);
 
   return (
     <div className={cn("relative flex items-center justify-center", className)}>
@@ -265,8 +258,16 @@ export const CircularTimer: React.FC<CircularTimerProps> = ({
         >
           <div className="flex items-start p-3 sm:p-4">
             <div className="flex-1 text-sm sm:text-base">
-              <b>How to set time: </b>
-              Slide the orange knob around the ring to adjust minutes. Click Start then choose number of repeated cycles
+              <div className="font-semibold mb-1">Guide</div>
+              <ol className="list-decimal pl-5 space-y-1">
+                <li>
+                  Slide the orange knob around the ring to adjust minutes.
+                  Click <b>Start</b>, then choose the number of repeat cycles.
+                </li>
+                <li>
+                  The longer you focus, the higher your chances of unlocking a pet.
+                </li>
+              </ol>
             </div>
             <button
               aria-label="Dismiss tip"
